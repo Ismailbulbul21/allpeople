@@ -154,25 +154,20 @@ export const NicknameSetup = ({ onUserSetup }) => {
 
           <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-4">
             <h3 className="font-medium text-gray-900 dark:text-white mb-2">
-              Waa ID kaaga heeso (This is your ID, save it):
+              Your User ID (save this to access from other devices):
             </h3>
-            <div className="bg-white dark:bg-gray-800 rounded border p-3 mb-3">
+            <div className="bg-white dark:bg-gray-800 rounded border p-3">
               <code className="text-sm text-gray-800 dark:text-gray-200 break-all">
                 {showUserIdResult.id}
               </code>
-            </div>
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded p-3">
-              <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                <strong>Muhiim:</strong> Kaydso ID-gan! Waxaad u baahan tahay inaad ka hesho akoonkaaga qalabka kale.
-              </p>
             </div>
           </div>
 
           <button
             onClick={handleConfirmUserId}
-            className="w-full bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600 transition-colors"
+            className="w-full bg-green-500 text-white py-3 px-6 rounded-lg hover:bg-green-600 transition-colors font-medium"
           >
-            Waan kaydiyay, soo gal chatka (I saved it, enter chat)
+            Done
           </button>
         </div>
       </div>
