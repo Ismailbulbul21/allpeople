@@ -1,0 +1,176 @@
+import React, { useState, useEffect } from 'react'
+import { ChatBox } from './components/ChatBox'
+import { MessageInput } from './components/MessageInput'
+import { NicknameSetup } from './components/NicknameSetup'
+import { UserProfile } from './components/UserProfile'
+import { getNickname, getUserId, getDisplayNickname } from './utils/storage'
+import { getCurrentUser, updateLastActive } from './utils/userManager'
+import { FaMoon, FaSun, FaUser, FaComments } from 'react-icons/fa'
+
+function App() {
+  const [user, setUser] = useState(null)
+  const [showNicknamePrompt, setShowNicknamePrompt] = useState(false)
+  const [showUserProfile, setShowUserProfile] = useState(false)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const [isDarkMode, setIsDarkMode] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
+
+  useEffect(() => {
+    // Check for saved user
+    const checkUser = async () => {
+      const savedNickname = getNickname()
+      const savedUserId = getUserId()
+      
+      if (savedNickname && savedUserId) {
+        const currentUser = await getCurrentUser()
+        if (currentUser) {
+          setUser(currentUser)
+          updateLastActive()
+        } else {
+          setShowNicknamePrompt(true)
+        }
+      } else {
+        setShowNicknamePrompt(true)
+      }
+    }
+
+    checkUser()
+
+    // Check for dark mode preference
+    const isDark = localStorage.getItem('darkMode') === 'true' || 
+                  (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches)
+    setIsDarkMode(isDark)
+    document.documentElement.classList.toggle('dark', isDark)
+  }, [])
+
+  const handleUserSetup = (userData, message) => {
+    setUser(userData)
+    setShowNicknamePrompt(false)
+    setSuccessMessage(message)
+    setTimeout(() => setSuccessMessage(''), 3000)
+  }
+
+  const handleUserLogout = () => {
+    setUser(null)
+    setShowNicknamePrompt(true)
+    setShowUserProfile(false)
+  }
+
+  const handleChangeNickname = () => {
+    setShowUserProfile(true)
+  }
+
+  const handleMessageSent = () => {
+    setRefreshTrigger(prev => prev + 1)
+  }
+
+  const toggleDarkMode = () => {
+    const newDarkMode = !isDarkMode
+    setIsDarkMode(newDarkMode)
+    localStorage.setItem('darkMode', newDarkMode.toString())
+    document.documentElement.classList.toggle('dark', newDarkMode)
+  }
+
+  const formatNickname = (nick) => {
+    return getDisplayNickname(nick)
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
+      {/* Header */}
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-primary-500 rounded-full">
+              <FaComments className="text-white" size={20} />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+                OpenChat Room
+              </h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Public chat • Messages delete after 24h
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {user && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  {formatNickname(user.nickname)}
+                </span>
+                <button
+                  onClick={handleChangeNickname}
+                  className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                  title="User profile"
+                >
+                  <FaUser size={14} />
+                </button>
+              </div>
+            )}
+            
+            <button
+              onClick={toggleDarkMode}
+              className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+              title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {isDarkMode ? <FaSun size={18} /> : <FaMoon size={18} />}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Success Message */}
+      {successMessage && (
+        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 text-center">
+          {successMessage}
+        </div>
+      )}
+
+      {/* Chat Area */}
+      <main className="flex-1 flex flex-col overflow-hidden">
+        {user ? (
+          <>
+            <ChatBox nickname={user.nickname} refreshTrigger={refreshTrigger} />
+            <MessageInput
+              nickname={user.nickname}
+              onMessageSent={handleMessageSent}
+            />
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center p-4">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-primary-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <FaComments className="text-white" size={24} />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                Welcome to OpenChat
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                A public chat room where messages automatically delete after 24 hours
+              </p>
+              <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* User Setup Modal */}
+      {showNicknamePrompt && (
+        <NicknameSetup onUserSetup={handleUserSetup} />
+      )}
+
+      {/* User Profile Modal */}
+      {showUserProfile && user && (
+        <UserProfile
+          user={user}
+          onClose={() => setShowUserProfile(false)}
+          onLogout={handleUserLogout}
+        />
+      )}
+    </div>
+  )
+}
+
+export default App
