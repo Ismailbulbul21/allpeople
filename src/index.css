@@ -10,6 +10,27 @@
 @layer base {
   body {
     @apply bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100;
+    /* Optimize for mobile performance */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Prevent zoom on input focus on iOS */
+    -webkit-text-size-adjust: 100%;
+    /* Improve touch scrolling */
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Optimize touch targets for mobile */
+  button, input, textarea, select {
+    /* Ensure minimum touch target size */
+    min-height: 44px;
+    /* Improve touch responsiveness */
+    touch-action: manipulation;
+  }
+
+  /* Improve focus visibility for accessibility */
+  button:focus, input:focus, textarea:focus, select:focus {
+    outline: 2px solid var(--primary-500);
+    outline-offset: 2px;
   }
 }
 
@@ -18,12 +39,54 @@
   .animate-fadeIn {
     animation: fadeIn 0.3s ease-out;
   }
+
+  /* Touch-optimized buttons */
+  .touch-manipulation {
+    touch-action: manipulation;
+    /* Prevent text selection on touch */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    /* Improve tap highlight */
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+  }
+
+  /* Optimized for mobile reactions */
+  .reaction-button {
+    /* Ensure good touch target size */
+    min-width: 44px;
+    min-height: 44px;
+    /* Improve touch responsiveness */
+    touch-action: manipulation;
+    /* Prevent double-tap zoom */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    /* Add haptic feedback feel */
+    transition: transform 0.1s ease-in-out, background-color 0.2s ease;
+  }
+
+  .reaction-button:active {
+    transform: scale(0.95);
+  }
+
+  /* Mobile-optimized message bubbles */
+  .message-bubble {
+    /* Ensure proper text rendering */
+    text-rendering: optimizeLegibility;
+    /* Improve readability on mobile */
+    line-height: 1.5;
+    /* Optimize for touch scrolling */
+    -webkit-overflow-scrolling: touch;
+  }
   
   /* Modern audio player styling */
   .audio-player {
     background: transparent;
     border: none;
     outline: none;
+    /* Optimize for mobile */
+    touch-action: manipulation;
   }
   
   .audio-player::-webkit-media-controls-panel {
@@ -36,12 +99,17 @@
     background: rgba(59, 130, 246, 0.1);
     border-radius: 50%;
     margin-right: 8px;
+    /* Improve touch target */
+    min-width: 44px;
+    min-height: 44px;
   }
   
   .audio-player::-webkit-media-controls-timeline {
     background: rgba(156, 163, 175, 0.3);
     border-radius: 4px;
     margin: 0 8px;
+    /* Improve touch interaction */
+    min-height: 44px;
   }
   
   .audio-player::-webkit-media-controls-current-time-display,
@@ -50,35 +118,84 @@
     color: rgba(107, 114, 128, 0.8);
   }
   
-  /* Custom scrollbar */
+  /* Custom scrollbar - mobile optimized */
   .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
+    width: 8px; /* Slightly wider for mobile */
   }
   
   .scrollbar-thin::-webkit-scrollbar-track {
     background: rgba(156, 163, 175, 0.1);
-    border-radius: 3px;
+    border-radius: 4px;
   }
   
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: rgba(156, 163, 175, 0.3);
-    border-radius: 3px;
+    background: rgba(156, 163, 175, 0.4);
+    border-radius: 4px;
+    /* Improve touch interaction */
+    min-height: 44px;
   }
   
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background: rgba(156, 163, 175, 0.5);
+    background: rgba(156, 163, 175, 0.6);
   }
-  
+
+  /* Mobile-optimized form inputs */
   .input-field {
-    @apply w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100;
+    @apply w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100;
+    /* Optimize for mobile */
+    font-size: 16px; /* Prevent zoom on iOS */
+    touch-action: manipulation;
+    -webkit-appearance: none;
+    /* Improve touch target */
+    min-height: 44px;
   }
   
   .btn-primary {
-    @apply bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply bg-primary-500 hover:bg-primary-600 text-white px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+    /* Optimize for mobile */
+    touch-action: manipulation;
+    min-height: 44px;
+    /* Improve tap feedback */
+    -webkit-tap-highlight-color: rgba(59, 130, 246, 0.2);
   }
   
   .btn-secondary {
-    @apply bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-medium transition-colors;
+    @apply bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-medium transition-colors;
+    /* Optimize for mobile */
+    touch-action: manipulation;
+    min-height: 44px;
+    /* Improve tap feedback */
+    -webkit-tap-highlight-color: rgba(156, 163, 175, 0.2);
+  }
+
+  /* Modal optimizations for mobile */
+  .modal-overlay {
+    /* Improve scrolling on mobile */
+    -webkit-overflow-scrolling: touch;
+    /* Prevent body scroll when modal is open */
+    overscroll-behavior: contain;
+  }
+
+  /* Performance optimizations */
+  .will-change-transform {
+    will-change: transform;
+  }
+
+  .will-change-opacity {
+    will-change: opacity;
+  }
+
+  /* Reduce motion for users who prefer it */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fadeIn {
+      animation: none;
+    }
+    
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 
@@ -90,5 +207,39 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Mobile-specific media queries */
+@media (max-width: 640px) {
+  /* Ensure proper spacing on mobile */
+  .mobile-spacing {
+    padding: 0.75rem;
+  }
+  
+  /* Optimize text sizes for mobile */
+  .mobile-text {
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  
+  /* Improve button sizes on mobile */
+  .mobile-button {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.75rem;
+  }
+}
+
+/* Improve performance on low-end devices */
+@media (max-width: 480px) {
+  /* Reduce animations on very small screens */
+  .animate-fadeIn {
+    animation-duration: 0.2s;
+  }
+  
+  /* Optimize for slower devices */
+  * {
+    will-change: auto;
   }
 }

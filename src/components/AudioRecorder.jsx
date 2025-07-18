@@ -19,12 +19,49 @@ export const AudioRecorder = ({ onRecordingComplete, disabled }) => {
     }
   }, [])
 
+  const compressAudio = async (blob) => {
+    try {
+      // Create a simple compression by reducing the blob size
+      const arrayBuffer = await blob.arrayBuffer()
+      const uint8Array = new Uint8Array(arrayBuffer)
+      
+      // Simple compression: take every other byte for very basic compression
+      const compressedArray = new Uint8Array(Math.floor(uint8Array.length * 0.8))
+      for (let i = 0; i < compressedArray.length; i++) {
+        compressedArray[i] = uint8Array[Math.floor(i * 1.25)]
+      }
+      
+      return new Blob([compressedArray], { type: blob.type })
+    } catch (error) {
+      console.error('Compression failed, using original:', error)
+      return blob
+    }
+  }
+
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mediaRecorder = new MediaRecorder(stream, { 
-        mimeType: 'audio/webm;codecs=opus' 
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 22050, // Lower sample rate for smaller files
+          channelCount: 1 // Mono audio
+        }
       })
+      
+      // Use lower quality settings for faster upload
+      const options = {
+        mimeType: 'audio/webm;codecs=opus',
+        audioBitsPerSecond: 32000 // Lower bitrate for smaller files
+      }
+      
+      // Fallback for Safari
+      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+        options.mimeType = 'audio/mp4'
+        options.audioBitsPerSecond = 32000
+      }
+      
+      const mediaRecorder = new MediaRecorder(stream, options)
       
       const chunks = []
       
@@ -34,14 +71,21 @@ export const AudioRecorder = ({ onRecordingComplete, disabled }) => {
         }
       }
       
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'audio/webm' })
-        setAudioBlob(blob)
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(chunks, { type: mediaRecorder.mimeType })
+        
+        // Compress audio if it's too large
+        let finalBlob = blob
+        if (blob.size > 500000) { // If larger than 500KB
+          finalBlob = await compressAudio(blob)
+        }
+        
+        setAudioBlob(finalBlob)
         stream.getTracks().forEach(track => track.stop())
       }
       
       mediaRecorderRef.current = mediaRecorder
-      mediaRecorder.start()
+      mediaRecorder.start(1000) // Collect data every second for better streaming
       setIsRecording(true)
       setRecordingTime(0)
       

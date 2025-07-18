@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { FaPlay, FaPause, FaExpand, FaVolumeUp, FaTrash, FaReply, FaHeart, FaThumbsUp, FaThumbsDown, FaFire, FaHandsHelping, FaCheck } from 'react-icons/fa'
 import { supabase } from '../lib/supabase'
 import { getDisplayNickname, getUserId } from '../utils/storage'
@@ -22,12 +22,16 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
   const [userReaction, setUserReaction] = useState(null)
   const [showReactionPicker, setShowReactionPicker] = useState(false)
   const [deleteSuccess, setDeleteSuccess] = useState(false)
+  const [isReacting, setIsReacting] = useState(false)
+
+  // Debounce reaction handling to prevent rapid clicking
+  const [reactionDebounce, setReactionDebounce] = useState(null)
 
   useEffect(() => {
     fetchReactions()
   }, [message.id])
 
-  const fetchReactions = async () => {
+  const fetchReactions = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('message_reactions')
@@ -47,47 +51,69 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
     } catch (error) {
       console.error('Error fetching reactions:', error)
     }
-  }
+  }, [message.id, currentUser?.id])
 
-  const handleReaction = async (reactionType) => {
-    if (!currentUser) return
+  const handleReaction = useCallback(async (reactionType) => {
+    if (!currentUser || isReacting) return
 
-    try {
-      if (userReaction?.reaction_type === reactionType) {
-        // Remove reaction if clicking the same one
-        const { error } = await supabase
-          .from('message_reactions')
-          .delete()
-          .eq('message_id', message.id)
-          .eq('user_id', currentUser.id)
-
-        if (error) throw error
-      } else {
-        // Remove any existing reaction first, then add new one
-        await supabase
-          .from('message_reactions')
-          .delete()
-          .eq('message_id', message.id)
-          .eq('user_id', currentUser.id)
-
-        // Add new reaction
-        const { error } = await supabase
-          .from('message_reactions')
-          .insert({
-            message_id: message.id,
-            user_id: currentUser.id,
-            reaction_type: reactionType
-          })
-
-        if (error) throw error
-      }
-
-      await fetchReactions()
-      setShowReactionPicker(false)
-    } catch (error) {
-      console.error('Error handling reaction:', error)
+    // Clear any existing debounce
+    if (reactionDebounce) {
+      clearTimeout(reactionDebounce)
     }
-  }
+
+    // Set debounce to prevent rapid clicking
+    const debounceTimer = setTimeout(async () => {
+      setIsReacting(true)
+      try {
+        if (userReaction?.reaction_type === reactionType) {
+          // Remove reaction if clicking the same one
+          const { error } = await supabase
+            .from('message_reactions')
+            .delete()
+            .eq('message_id', message.id)
+            .eq('user_id', currentUser.id)
+
+          if (error) throw error
+        } else {
+          // Remove any existing reaction first, then add new one
+          await supabase
+            .from('message_reactions')
+            .delete()
+            .eq('message_id', message.id)
+            .eq('user_id', currentUser.id)
+
+          // Add new reaction
+          const { error } = await supabase
+            .from('message_reactions')
+            .insert({
+              message_id: message.id,
+              user_id: currentUser.id,
+              reaction_type: reactionType
+            })
+
+          if (error) throw error
+        }
+
+        await fetchReactions()
+        setShowReactionPicker(false)
+      } catch (error) {
+        console.error('Error handling reaction:', error)
+      } finally {
+        setIsReacting(false)
+      }
+    }, 100) // 100ms debounce
+
+    setReactionDebounce(debounceTimer)
+  }, [currentUser, userReaction, message.id, fetchReactions, isReacting, reactionDebounce])
+
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      if (reactionDebounce) {
+        clearTimeout(reactionDebounce)
+      }
+    }
+  }, [reactionDebounce])
 
   const formatTime = (timestamp) => {
     const date = new Date(timestamp)
@@ -108,10 +134,7 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
   }
 
   const handleDeleteMessage = async () => {
-    // Create a modern confirmation dialog
-    const confirmDelete = window.confirm('🗑️ Delete this message?\n\nThis action cannot be undone.')
-    
-    if (!confirmDelete) {
+    if (!confirm('Are you sure you want to delete this message?')) {
       return
     }
 
@@ -119,48 +142,48 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
     try {
       const result = await deleteMessage(message.id)
       if (result.success) {
-        // Show success state briefly
         setDeleteSuccess(true)
-        setTimeout(() => {
-          setDeleteSuccess(false)
-        }, 1000)
+        setTimeout(() => setDeleteSuccess(false), 2000)
       } else {
-        // Show error with modern alert
-        alert('❌ Error: ' + result.message)
+        alert(result.message)
       }
     } catch (error) {
       console.error('Error deleting message:', error)
-      alert('❌ Failed to delete message. Please try again.')
+      alert('Failed to delete message')
     } finally {
       setIsDeleting(false)
     }
   }
 
-  const getReactionCounts = () => {
+  const handleReply = () => {
+    onReply(message)
+  }
+
+  // Memoize expensive calculations
+  const reactionCounts = useMemo(() => {
     const counts = {}
     reactions.forEach(reaction => {
       counts[reaction.reaction_type] = (counts[reaction.reaction_type] || 0) + 1
     })
     return counts
-  }
+  }, [reactions])
 
-  const getReactionUsers = (reactionType) => {
-    return reactions
-      .filter(r => r.reaction_type === reactionType)
-      .map(r => r.users?.nickname)
-      .join(', ')
-  }
-
-  const reactionCounts = getReactionCounts()
   const hasReactions = Object.keys(reactionCounts).length > 0
+
+  const getReactionUsers = useCallback((reactionType) => {
+    const users = reactions
+      .filter(r => r.reaction_type === reactionType)
+      .map(r => getDisplayNickname(r.users?.nickname || 'Unknown'))
+    return users.join(', ')
+  }, [reactions])
 
   return (
     <>
-      <div className={`flex mb-6 ${isOwn ? 'justify-end' : 'justify-start'} animate-fadeIn group`}>
-        <div className={`max-w-sm lg:max-w-lg ${isOwn ? 'order-2' : 'order-1'}`}>
+      <div className={`flex mb-4 sm:mb-6 ${isOwn ? 'justify-end' : 'justify-start'} animate-fadeIn`}>
+        <div className={`max-w-xs sm:max-w-sm lg:max-w-lg ${isOwn ? 'order-2' : 'order-1'}`}>
           {!isOwn && (
             <div className="flex items-center mb-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-bold mr-2">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs sm:text-sm font-bold mr-2">
                 {getDisplayNickname(message.nickname)}
               </div>
               <div className="text-xs text-gray-500 dark:text-gray-400">
@@ -170,32 +193,43 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
           )}
           
           <div 
-            className={`relative p-4 rounded-2xl shadow-sm ${
+            className={`relative p-3 sm:p-4 rounded-2xl shadow-sm ${
               isOwn 
-                ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white ml-4' 
-                : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white mr-4 border border-gray-200 dark:border-gray-700'
+                ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white ml-2 sm:ml-4' 
+                : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white mr-2 sm:mr-4 border border-gray-200 dark:border-gray-700'
             }`}
             onMouseEnter={() => setShowDeleteButton(true)}
             onMouseLeave={() => setShowDeleteButton(false)}
           >
-            {/* Action Buttons */}
-            <div className={`absolute -top-3 ${isOwn ? '-left-3' : '-right-3'} flex space-x-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform group-hover:translate-y-1`}>
-              {/* Reply Button */}
+            {/* Action buttons - Mobile Optimized */}
+            <div className={`absolute ${isOwn ? 'left-2 sm:left-3' : 'right-2 sm:right-3'} -top-3 sm:-top-4 flex space-x-1 sm:space-x-2`}>
+              {/* Reply button */}
               <button
-                onClick={() => onReply(message)}
-                className="p-2.5 bg-blue-500 hover:bg-blue-600 rounded-full shadow-xl hover:shadow-2xl transition-all duration-200 hover:scale-110 border-2 border-white"
+                onClick={handleReply}
+                className="p-2 sm:p-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-xl hover:shadow-2xl transition-all duration-200 hover:scale-110 border-2 border-white touch-manipulation"
                 title="Reply to this message"
               >
-                <FaReply size={12} className="text-white" />
+                <FaReply size={10} className="sm:hidden" />
+                <FaReply size={12} className="hidden sm:block" />
               </button>
 
-              {/* Reaction Button */}
+              {/* Reaction button */}
               <button
                 onClick={() => setShowReactionPicker(!showReactionPicker)}
-                className="p-2.5 bg-pink-500 hover:bg-pink-600 rounded-full shadow-xl hover:shadow-2xl transition-all duration-200 hover:scale-110 border-2 border-white"
-                title="React to this message"
+                disabled={isReacting}
+                className={`p-2 sm:p-2.5 rounded-full shadow-xl hover:shadow-2xl transition-all duration-200 hover:scale-110 border-2 border-white touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed ${
+                  showReactionPicker ? 'bg-pink-600' : 'bg-pink-500 hover:bg-pink-600'
+                }`}
+                title="Add reaction"
               >
-                <FaHeart size={12} className="text-white" />
+                {isReacting ? (
+                  <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <>
+                    <FaHeart size={10} className="sm:hidden text-white" />
+                    <FaHeart size={12} className="hidden sm:block text-white" />
+                  </>
+                )}
               </button>
 
               {/* Delete button for own messages */}
@@ -203,7 +237,7 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
                 <button
                   onClick={handleDeleteMessage}
                   disabled={isDeleting || deleteSuccess}
-                  className={`p-2.5 rounded-full shadow-xl hover:shadow-2xl transition-all duration-200 hover:scale-110 disabled:cursor-not-allowed border-2 border-white ${
+                  className={`p-2 sm:p-2.5 rounded-full shadow-xl hover:shadow-2xl transition-all duration-200 hover:scale-110 disabled:cursor-not-allowed border-2 border-white touch-manipulation ${
                     deleteSuccess 
                       ? 'bg-green-500 animate-pulse' 
                       : 'bg-red-500 hover:bg-red-600 disabled:opacity-50'
@@ -211,19 +245,25 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
                   title={deleteSuccess ? "Message deleted!" : "Delete this message"}
                 >
                   {isDeleting ? (
-                    <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   ) : deleteSuccess ? (
-                    <FaCheck size={12} className="text-white" />
+                    <>
+                      <FaCheck size={10} className="sm:hidden text-white" />
+                      <FaCheck size={12} className="hidden sm:block text-white" />
+                    </>
                   ) : (
-                    <FaTrash size={12} className="text-white" />
+                    <>
+                      <FaTrash size={10} className="sm:hidden text-white" />
+                      <FaTrash size={12} className="hidden sm:block text-white" />
+                    </>
                   )}
                 </button>
               )}
             </div>
 
-            {/* Reaction Picker */}
+            {/* Reaction Picker - Mobile Optimized */}
             {showReactionPicker && (
-              <div className={`absolute ${isOwn ? 'left-2' : 'right-2'} top-12 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-2 flex space-x-1 z-20`}>
+              <div className={`absolute ${isOwn ? 'left-2 sm:left-3' : 'right-2 sm:right-3'} top-10 sm:top-12 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-1.5 sm:p-2 flex space-x-1 z-20`}>
                 {Object.entries(REACTION_TYPES).map(([type, config]) => {
                   const Icon = config.icon
                   const isActive = userReaction?.reaction_type === type
@@ -231,12 +271,13 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
                     <button
                       key={type}
                       onClick={() => handleReaction(type)}
-                      className={`p-2 rounded-lg hover:scale-110 transition-all duration-200 ${
+                      disabled={isReacting}
+                      className={`p-2 sm:p-2.5 rounded-lg hover:scale-110 transition-all duration-200 touch-manipulation disabled:opacity-50 ${
                         isActive ? 'bg-blue-100 dark:bg-blue-900 scale-110' : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                       }`}
                       title={config.label}
                     >
-                      <Icon size={18} className={config.color} />
+                      <Icon size={14} className={`sm:size-4 ${config.color}`} />
                     </button>
                   )
                 })}
@@ -245,7 +286,7 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
 
             {/* Text content */}
             {message.content && (
-              <div className="whitespace-pre-wrap break-words leading-relaxed">
+              <div className="whitespace-pre-wrap break-words leading-relaxed text-sm sm:text-base">
                 {message.content}
               </div>
             )}
@@ -262,7 +303,7 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
                 />
                 <button
                   onClick={handleImageClick}
-                  className="absolute top-2 right-2 bg-black bg-opacity-50 text-white p-1 rounded-full opacity-0 hover:opacity-100 transition-opacity"
+                  className="absolute top-2 right-2 bg-black bg-opacity-50 text-white p-1 rounded-full opacity-0 hover:opacity-100 transition-opacity touch-manipulation"
                   title="Expand image"
                 >
                   <FaExpand size={12} />
@@ -273,14 +314,14 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
             {/* Audio content */}
             {message.audio_url && (
               <div className="mt-2">
-                <div className={`flex items-center p-3 rounded-xl ${isOwn ? 'bg-blue-600/20' : 'bg-gray-100 dark:bg-gray-700'}`}>
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center mr-3 ${isOwn ? 'bg-blue-500' : 'bg-gray-400'}`}>
-                    <FaVolumeUp className="text-white" size={16} />
+                <div className={`flex items-center p-2 sm:p-3 rounded-xl ${isOwn ? 'bg-blue-600/20' : 'bg-gray-100 dark:bg-gray-700'}`}>
+                  <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center mr-2 sm:mr-3 ${isOwn ? 'bg-blue-500' : 'bg-gray-400'}`}>
+                    <FaVolumeUp className="text-white" size={14} />
                   </div>
                   <div className="flex-1">
                     <audio
                       controls
-                      className="w-full h-8 audio-player"
+                      className="w-full h-6 sm:h-8 audio-player"
                       onPlay={(e) => handleAudioPlay(e.target)}
                       onPause={handleAudioPause}
                       style={{
@@ -298,9 +339,9 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
               </div>
             )}
             
-            {/* Reactions Display */}
+            {/* Reactions Display - Mobile Optimized */}
             {hasReactions && (
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-2 sm:mt-3 flex flex-wrap gap-1 sm:gap-2">
                 {Object.entries(reactionCounts).map(([type, count]) => {
                   const config = REACTION_TYPES[type]
                   const Icon = config.icon
@@ -309,7 +350,7 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
                     <button
                       key={type}
                       onClick={() => setShowReactions(!showReactions)}
-                      className={`flex items-center space-x-1 px-2 py-1 rounded-lg text-xs transition-all duration-200 hover:scale-105 ${
+                      className={`flex items-center space-x-1 px-2 py-1 rounded-lg text-xs transition-all duration-200 hover:scale-105 touch-manipulation ${
                         isUserReaction 
                           ? 'bg-blue-500 text-white shadow-lg' 
                           : isOwn 
@@ -318,8 +359,8 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
                       }`}
                       title={`${config.label}: ${getReactionUsers(type)}`}
                     >
-                      <Icon size={12} className={isUserReaction ? 'text-white' : config.color} />
-                      <span className="font-medium">{count}</span>
+                      <Icon size={10} className={`sm:size-3 ${isUserReaction ? 'text-white' : config.color}`} />
+                      <span className="font-medium text-xs">{count}</span>
                     </button>
                   )
                 })}
@@ -335,14 +376,14 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
         </div>
       </div>
 
-      {/* Reactions Detail Modal */}
+      {/* Reactions Detail Modal - Mobile Optimized */}
       {showReactions && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
           onClick={() => setShowReactions(false)}
         >
           <div 
-            className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6"
+            className="bg-white dark:bg-gray-800 rounded-2xl max-w-sm sm:max-w-md w-full p-4 sm:p-6 max-h-96 overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
@@ -356,8 +397,8 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
                 return (
                   <div key={type} className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                      <Icon size={20} className={config.color} />
-                      <span className="text-gray-900 dark:text-white font-medium">
+                      <Icon size={18} className={`sm:size-5 ${config.color}`} />
+                      <span className="text-sm sm:text-base text-gray-900 dark:text-white font-medium">
                         {config.label}
                       </span>
                     </div>
@@ -365,7 +406,7 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
                       <div className="text-sm font-bold text-gray-900 dark:text-white">
                         {count}
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 max-w-32 truncate">
                         {users}
                       </div>
                     </div>
@@ -377,7 +418,7 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
         </div>
       )}
 
-      {/* Image modal */}
+      {/* Image modal - Mobile Optimized */}
       {isImageExpanded && message.image_url && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4"
@@ -391,7 +432,7 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
             />
             <button
               onClick={() => setIsImageExpanded(false)}
-              className="absolute top-4 right-4 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 transition-all"
+              className="absolute top-2 sm:top-4 right-2 sm:right-4 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 transition-all touch-manipulation"
             >
               ✕
             </button>
