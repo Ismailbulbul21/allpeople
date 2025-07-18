@@ -4,7 +4,6 @@ import { MessageInput } from './components/MessageInput'
 import { NicknameSetup } from './components/NicknameSetup'
 import { UserProfile } from './components/UserProfile'
 import { GroupMembersList } from './components/GroupMembersList'
-import { DailyQuestion } from './components/DailyQuestion'
 import { getNickname, getUserId, getDisplayNickname } from './utils/storage'
 import { getCurrentUser, updateLastActive } from './utils/userManager'
 import { initializeDailyQuestions } from './utils/dailyQuestionManager'
@@ -85,7 +84,70 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
-      {/* Header */}
+      {/* Daily Question Header */}
+      {user && (
+        <div className="bg-gradient-to-r from-green-500 to-blue-600 text-white sticky top-0 z-50 shadow-lg">
+          <div className="px-4 py-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white bg-opacity-20 rounded-full">
+                  <span className="text-2xl">📌</span>
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold">Daily Question</h2>
+                  <p className="text-sm opacity-90">Everyone must answer!</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowGroupMembers(true)}
+                  className="p-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition-colors"
+                  title="Group members"
+                >
+                  <FaUsers size={16} />
+                </button>
+                <button
+                  onClick={handleChangeNickname}
+                  className="p-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition-colors"
+                  title="User profile"
+                >
+                  <FaUser size={16} />
+                </button>
+                <button
+                  onClick={toggleDarkMode}
+                  className="p-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition-colors"
+                  title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+                >
+                  {isDarkMode ? <FaSun size={16} /> : <FaMoon size={16} />}
+                </button>
+              </div>
+            </div>
+            
+            {/* Question */}
+            <div className="bg-white bg-opacity-15 rounded-xl p-4 mb-3">
+              <p className="text-lg font-bold mb-2">
+                🇸🇴 Magacaaga oo dhameestiran, meesha aad joogtaa, maxaad qabataa?
+              </p>
+              <p className="text-sm opacity-90">
+                🇬🇧 What is your full name, where are you located, and what do you do?
+              </p>
+            </div>
+            
+            {/* Actions */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-yellow-300 rounded-full animate-pulse"></div>
+                <span className="text-sm">Waiting for your answer...</span>
+              </div>
+              <button className="bg-yellow-400 text-yellow-900 px-4 py-2 rounded-full font-bold hover:bg-yellow-300 transition-colors">
+                🎤 Answer Now!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* App Header */}
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -104,41 +166,17 @@ function App() {
                 Somali oo dhan
               </h1>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Public chat • Messages delete after 24h
+                Public chat community
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {user && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  {formatNickname(user.nickname)}
-                </span>
-                <button
-                  onClick={() => setShowGroupMembers(true)}
-                  className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                  title="Group members"
-                >
-                  <FaUsers size={14} />
-                </button>
-                <button
-                  onClick={handleChangeNickname}
-                  className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                  title="User profile"
-                >
-                  <FaUser size={14} />
-                </button>
-              </div>
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                {formatNickname(user.nickname)}
+              </span>
             )}
-            
-            <button
-              onClick={toggleDarkMode}
-              className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-              title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {isDarkMode ? <FaSun size={18} /> : <FaMoon size={18} />}
-            </button>
           </div>
         </div>
       </header>
@@ -150,8 +188,7 @@ function App() {
         </div>
       )}
 
-      {/* Daily Question - Always show when user is logged in */}
-      {user && <DailyQuestion currentUser={user} />}
+
 
       {/* Chat Area */}
       <main className="flex-1 flex flex-col overflow-hidden">
