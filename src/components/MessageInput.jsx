@@ -4,7 +4,7 @@ import { AudioRecorder } from './AudioRecorder'
 import { supabase } from '../lib/supabase'
 import { generateFileName, getUserId } from '../utils/storage'
 
-export const MessageInput = ({ nickname, onMessageSent, disabled, replyToMessage, onClearReply }) => {
+export const MessageInput = ({ nickname, onMessageSent, disabled }) => {
   const [message, setMessage] = useState('')
   const [selectedImage, setSelectedImage] = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
@@ -49,40 +49,35 @@ export const MessageInput = ({ nickname, onMessageSent, disabled, replyToMessage
       const { data, error } = await supabase.storage
         .from('chat-files')
         .upload(fileName, file, {
-          onUploadProgress: (progress) => {
-            setUploadProgress(Math.round((progress.loaded / progress.total) * 100))
-          }
+          cacheControl: '3600',
+          upsert: false,
+          duplex: 'half' // Optimize for faster uploads
         })
 
       if (error) {
-        console.error('Upload error:', error)
-        throw error
+        throw new Error(`Upload failed: ${error.message}`)
       }
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
+      const { data: urlData } = supabase.storage
         .from('chat-files')
         .getPublicUrl(fileName)
 
-      return publicUrl
+      return urlData.publicUrl
     } catch (error) {
-      console.error('Error uploading file:', error)
+      console.error('Upload error:', error)
       throw error
     }
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    
+  const sendMessage = async (content, imageFile, audioBlob) => {
     const now = Date.now()
     if (now - lastMessageTime < RATE_LIMIT_MS) {
-      const remainingTime = Math.ceil((RATE_LIMIT_MS - (now - lastMessageTime)) / 1000)
-      setError(`Please wait ${remainingTime} seconds before sending another message`)
+      setError(`Please wait ${Math.ceil((RATE_LIMIT_MS - (now - lastMessageTime)) / 1000)} seconds`)
       return
     }
 
-    if (!message.trim() && !selectedImage) {
-      setError('Please enter a message or select an image')
+    if (!content && !imageFile && !audioBlob) {
+      setError('Please enter a message or select a file')
       return
     }
 
@@ -91,57 +86,70 @@ export const MessageInput = ({ nickname, onMessageSent, disabled, replyToMessage
     setUploadProgress(0)
 
     try {
-      let imageUrl = null
-      
-      if (selectedImage) {
-        const fileName = generateFileName(selectedImage.name)
-        imageUrl = await uploadFile(selectedImage, fileName)
+      let imageUrl
+      let audioUrl
+
+      // Upload image if present
+      if (imageFile) {
+        setUploadProgress(25)
+        const fileName = generateFileName(nickname, imageFile.name.split('.').pop())
+        imageUrl = await uploadFile(imageFile, fileName)
+        setUploadProgress(50)
       }
 
-      const userId = getUserId()
-      const messageData = {
-        content: message.trim() || null,
-        image_url: imageUrl,
-        nickname: nickname,
-        user_id: userId,
-        reply_to: replyToMessage?.id || null
+      // Upload audio if present
+      if (audioBlob) {
+        setUploadProgress(imageFile ? 75 : 50)
+        const fileName = generateFileName(nickname, 'webm')
+        audioUrl = await uploadFile(audioBlob, fileName)
+        setUploadProgress(90)
       }
 
-      const { error: insertError } = await supabase
+      // Insert message into database
+      console.log('Sending message:', { nickname, content, imageUrl, audioUrl })
+      const { data, error: insertError } = await supabase
         .from('messages')
-        .insert(messageData)
+        .insert({
+          nickname,
+          content: content || null,
+          image_url: imageUrl || null,
+          audio_url: audioUrl || null,
+          user_id: getUserId()
+        })
+        .select()
 
       if (insertError) {
         console.error('Insert error:', insertError)
-        throw insertError
+        throw new Error(`Failed to send message: ${insertError.message}`)
       }
+
+      console.log('Message sent successfully:', data)
+      setUploadProgress(100)
 
       // Reset form
       setMessage('')
       removeImage()
       setLastMessageTime(now)
-      setUploadProgress(0)
-      
-      // Clear reply if exists
-      if (replyToMessage && onClearReply) {
-        onClearReply()
-      }
+      onMessageSent()
 
-      // Notify parent component
-      if (onMessageSent) {
-        onMessageSent()
-      }
-
-      // Focus back to textarea for better UX
+      // Focus back to textarea
       if (textareaRef.current) {
         textareaRef.current.focus()
       }
 
     } catch (error) {
       console.error('Error sending message:', error)
-      setError(error.message || 'Failed to send message')
+      setError(error instanceof Error ? error.message : 'Failed to send message')
     } finally {
       setIsUploading(false)
+      setUploadProgress(0)
+    }
+  }
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (message.trim() || selectedImage) {
+      sendMessage(message.trim(), selectedImage || undefined)
     }
   }
 
@@ -152,124 +160,46 @@ export const MessageInput = ({ nickname, onMessageSent, disabled, replyToMessage
     }
   }
 
-  const handleAudioComplete = async (audioBlob) => {
-    const now = Date.now()
-    if (now - lastMessageTime < RATE_LIMIT_MS) {
-      const remainingTime = Math.ceil((RATE_LIMIT_MS - (now - lastMessageTime)) / 1000)
-      setError(`Please wait ${remainingTime} seconds before sending another message`)
-      return
-    }
-
-    setIsUploading(true)
-    setError(null)
-    setUploadProgress(0)
-
-    try {
-      const fileName = generateFileName('audio.webm')
-      const audioUrl = await uploadFile(audioBlob, fileName)
-
-      const userId = getUserId()
-      const messageData = {
-        content: null,
-        audio_url: audioUrl,
-        nickname: nickname,
-        user_id: userId,
-        reply_to: replyToMessage?.id || null
-      }
-
-      const { error: insertError } = await supabase
-        .from('messages')
-        .insert(messageData)
-
-      if (insertError) {
-        console.error('Insert error:', insertError)
-        throw insertError
-      }
-
-      setLastMessageTime(now)
-      setUploadProgress(0)
-      
-      // Clear reply if exists
-      if (replyToMessage && onClearReply) {
-        onClearReply()
-      }
-
-      // Notify parent component
-      if (onMessageSent) {
-        onMessageSent()
-      }
-
-    } catch (error) {
-      console.error('Error sending audio message:', error)
-      setError(error.message || 'Failed to send audio message')
-    } finally {
-      setIsUploading(false)
-    }
+  const handleAudioComplete = (audioBlob) => {
+    sendMessage(undefined, undefined, audioBlob)
   }
 
-  const canSend = (message.trim() || selectedImage) && !isUploading
   const isFormDisabled = disabled || isUploading
+  const canSend = (message.trim() || selectedImage) && !isFormDisabled
 
   return (
-    <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-3 sm:p-4">
-      {/* Reply indicator - Mobile Optimized */}
-      {replyToMessage && (
-        <div className="mb-2 sm:mb-3 p-2 sm:p-3 bg-gray-100 dark:bg-gray-700 rounded-lg border-l-4 border-blue-500">
-          <div className="flex items-center justify-between">
-            <div className="flex-1 min-w-0">
-              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">
-                Replying to {replyToMessage.nickname}
-              </p>
-              <p className="text-sm text-gray-800 dark:text-gray-200 truncate">
-                {replyToMessage.content || (replyToMessage.image_url ? '📷 Image' : '🎵 Audio')}
-              </p>
-            </div>
-            <button
-              onClick={onClearReply}
-              className="ml-2 p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 touch-manipulation"
-              title="Cancel reply"
-            >
-              <FaTimes size={14} />
-            </button>
-          </div>
+    <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+      {error && (
+        <div className="mb-3 p-2 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200 rounded-lg text-sm">
+          {error}
         </div>
       )}
 
-      {/* Upload progress - Mobile Optimized */}
-      {isUploading && uploadProgress > 0 && (
-        <div className="mb-2 sm:mb-3">
-          <div className="flex items-center justify-between text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">
-            <span>Uploading...</span>
+      {isUploading && (
+        <div className="mb-3 p-2 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 rounded-lg text-sm">
+          <div className="flex items-center justify-between mb-1">
+            <span>Uploading voice message...</span>
             <span>{uploadProgress}%</span>
           </div>
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+          <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
             <div 
               className="bg-blue-500 h-2 rounded-full transition-all duration-300"
               style={{ width: `${uploadProgress}%` }}
-            />
+            ></div>
           </div>
         </div>
       )}
 
-      {/* Error message - Mobile Optimized */}
-      {error && (
-        <div className="mb-2 sm:mb-3 p-2 sm:p-3 bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded-lg">
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-        </div>
-      )}
-
-      {/* Image preview - Mobile Optimized */}
       {imagePreview && (
-        <div className="mb-2 sm:mb-3 relative inline-block">
+        <div className="mb-3 relative inline-block">
           <img
             src={imagePreview}
             alt="Preview"
-            className="max-w-24 sm:max-w-32 h-auto rounded-lg border border-gray-300 dark:border-gray-600"
+            className="max-w-32 max-h-32 rounded-lg object-cover"
           />
           <button
             onClick={removeImage}
-            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors touch-manipulation"
-            title="Remove image"
+            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
           >
             <FaTimes size={12} />
           </button>
@@ -284,14 +214,13 @@ export const MessageInput = ({ nickname, onMessageSent, disabled, replyToMessage
             onChange={(e) => setMessage(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Type a message..."
-            className="input-field resize-none min-h-[44px] max-h-32 text-sm sm:text-base"
+            className="input-field resize-none min-h-[44px] max-h-32"
             rows={1}
             disabled={isFormDisabled}
-            style={{ fontSize: '16px' }} // Prevent zoom on iOS
           />
         </div>
 
-        <div className="flex items-center gap-1 sm:gap-2">
+        <div className="flex items-center gap-2">
           <input
             ref={fileInputRef}
             type="file"
@@ -305,10 +234,10 @@ export const MessageInput = ({ nickname, onMessageSent, disabled, replyToMessage
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={isFormDisabled}
-            className="p-2 sm:p-2.5 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
+            className="p-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="Upload image"
           >
-            <FaImage size={14} className="sm:size-4" />
+            <FaImage size={16} />
           </button>
 
           <AudioRecorder
@@ -319,17 +248,26 @@ export const MessageInput = ({ nickname, onMessageSent, disabled, replyToMessage
           <button
             type="submit"
             disabled={!canSend}
-            className="btn-primary p-2 sm:p-2.5 rounded-full min-w-[44px] min-h-[44px] flex items-center justify-center touch-manipulation"
+            className="btn-primary p-2 rounded-full"
             title="Send message"
           >
             {isUploading ? (
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
             ) : (
-              <FaPaperPlane size={14} className="sm:size-4" />
+              <FaPaperPlane size={16} />
             )}
           </button>
         </div>
       </form>
+
+      {/* Hidden file input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleImageSelect}
+        accept="image/*"
+        className="hidden"
+      />
     </div>
   )
 } 
