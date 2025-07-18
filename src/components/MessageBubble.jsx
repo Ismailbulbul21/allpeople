@@ -1,10 +1,13 @@
 import React, { useState } from 'react'
-import { FaPlay, FaPause, FaExpand, FaVolumeUp } from 'react-icons/fa'
+import { FaPlay, FaPause, FaExpand, FaVolumeUp, FaTrash } from 'react-icons/fa'
 import { getDisplayNickname } from '../utils/storage'
+import { deleteMessage } from '../utils/userManager'
 
 export const MessageBubble = ({ message, isOwn }) => {
   const [isImageExpanded, setIsImageExpanded] = useState(false)
   const [isAudioPlaying, setIsAudioPlaying] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [showDeleteButton, setShowDeleteButton] = useState(false)
 
   const formatTime = (timestamp) => {
     const date = new Date(timestamp)
@@ -24,6 +27,25 @@ export const MessageBubble = ({ message, isOwn }) => {
     setIsAudioPlaying(false)
   }
 
+  const handleDeleteMessage = async () => {
+    if (!confirm('Are you sure you want to delete this message?')) {
+      return
+    }
+
+    setIsDeleting(true)
+    try {
+      const result = await deleteMessage(message.id)
+      if (!result.success) {
+        alert(result.message)
+      }
+    } catch (error) {
+      console.error('Error deleting message:', error)
+      alert('Failed to delete message')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   return (
     <>
       <div className={`flex mb-6 ${isOwn ? 'justify-end' : 'justify-start'} animate-fadeIn`}>
@@ -39,11 +61,31 @@ export const MessageBubble = ({ message, isOwn }) => {
             </div>
           )}
           
-          <div className={`relative p-4 rounded-2xl shadow-sm ${
-            isOwn 
-              ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white ml-4' 
-              : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white mr-4 border border-gray-200 dark:border-gray-700'
-          }`}>
+          <div 
+            className={`relative p-4 rounded-2xl shadow-sm ${
+              isOwn 
+                ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white ml-4' 
+                : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white mr-4 border border-gray-200 dark:border-gray-700'
+            }`}
+            onMouseEnter={() => isOwn && setShowDeleteButton(true)}
+            onMouseLeave={() => setShowDeleteButton(false)}
+          >
+            {/* Delete button for own messages */}
+            {isOwn && showDeleteButton && (
+              <button
+                onClick={handleDeleteMessage}
+                disabled={isDeleting}
+                className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-lg transition-all duration-200 z-10 disabled:opacity-50"
+                title="Delete message"
+              >
+                {isDeleting ? (
+                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <FaTrash size={12} />
+                )}
+              </button>
+            )}
+
             {/* Text content */}
             {message.content && (
               <div className="whitespace-pre-wrap break-words leading-relaxed">

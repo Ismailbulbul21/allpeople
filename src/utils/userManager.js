@@ -242,4 +242,164 @@ export const getUserShareableId = () => {
     nickname,
     shareableCode: userId.split('-')[0].toUpperCase() // First part of UUID for easier sharing
   }
+}
+
+// Delete a specific message (only if user owns it)
+export const deleteMessage = async (messageId) => {
+  const userId = getUserId()
+  const nickname = getNickname()
+  
+  if (!userId || !nickname) {
+    return { success: false, message: 'User not authenticated' }
+  }
+
+  try {
+    // First check if the user owns this message
+    const { data: message, error: fetchError } = await supabase
+      .from('messages')
+      .select('nickname, user_id')
+      .eq('id', messageId)
+      .single()
+
+    if (fetchError) {
+      return { success: false, message: 'Message not found' }
+    }
+
+    // Check if user owns the message (by nickname or user_id)
+    if (message.nickname !== nickname && message.user_id !== userId) {
+      return { success: false, message: 'You can only delete your own messages' }
+    }
+
+    // Delete the message
+    const { error: deleteError } = await supabase
+      .from('messages')
+      .delete()
+      .eq('id', messageId)
+
+    if (deleteError) {
+      throw deleteError
+    }
+
+    return { success: true, message: 'Message deleted successfully' }
+  } catch (error) {
+    console.error('Error deleting message:', error)
+    return { success: false, message: 'Failed to delete message' }
+  }
+}
+
+// Delete all messages for the current user
+export const deleteAllUserMessages = async () => {
+  const userId = getUserId()
+  const nickname = getNickname()
+  
+  if (!userId || !nickname) {
+    return { success: false, message: 'User not authenticated' }
+  }
+
+  try {
+    // Delete all messages by this user (matching by nickname or user_id)
+    const { error } = await supabase
+      .from('messages')
+      .delete()
+      .or(`nickname.eq.${nickname},user_id.eq.${userId}`)
+
+    if (error) {
+      throw error
+    }
+
+    return { success: true, message: 'All your messages have been deleted' }
+  } catch (error) {
+    console.error('Error deleting all messages:', error)
+    return { success: false, message: 'Failed to delete messages' }
+  }
+}
+
+// Delete all messages containing images for the current user
+export const deleteAllUserImages = async () => {
+  const userId = getUserId()
+  const nickname = getNickname()
+  
+  if (!userId || !nickname) {
+    return { success: false, message: 'User not authenticated' }
+  }
+
+  try {
+    // Delete all messages with images by this user
+    const { error } = await supabase
+      .from('messages')
+      .delete()
+      .or(`nickname.eq.${nickname},user_id.eq.${userId}`)
+      .not('image_url', 'is', null)
+
+    if (error) {
+      throw error
+    }
+
+    return { success: true, message: 'All your images have been deleted' }
+  } catch (error) {
+    console.error('Error deleting user images:', error)
+    return { success: false, message: 'Failed to delete images' }
+  }
+}
+
+// Delete all messages containing audio for the current user
+export const deleteAllUserAudio = async () => {
+  const userId = getUserId()
+  const nickname = getNickname()
+  
+  if (!userId || !nickname) {
+    return { success: false, message: 'User not authenticated' }
+  }
+
+  try {
+    // Delete all messages with audio by this user
+    const { error } = await supabase
+      .from('messages')
+      .delete()
+      .or(`nickname.eq.${nickname},user_id.eq.${userId}`)
+      .not('audio_url', 'is', null)
+
+    if (error) {
+      throw error
+    }
+
+    return { success: true, message: 'All your voice messages have been deleted' }
+  } catch (error) {
+    console.error('Error deleting user audio:', error)
+    return { success: false, message: 'Failed to delete voice messages' }
+  }
+}
+
+// Get count of user's messages by type
+export const getUserMessageCounts = async () => {
+  const userId = getUserId()
+  const nickname = getNickname()
+  
+  if (!userId || !nickname) {
+    return { success: false, message: 'User not authenticated' }
+  }
+
+  try {
+    // Get all messages by this user
+    const { data: messages, error } = await supabase
+      .from('messages')
+      .select('content, image_url, audio_url')
+      .or(`nickname.eq.${nickname},user_id.eq.${userId}`)
+
+    if (error) {
+      throw error
+    }
+
+    const counts = {
+      total: messages.length,
+      text: messages.filter(m => m.content && !m.image_url && !m.audio_url).length,
+      images: messages.filter(m => m.image_url).length,
+      audio: messages.filter(m => m.audio_url).length
+    }
+
+    return { success: true, counts }
+  } catch (error) {
+    console.error('Error getting message counts:', error)
+    return { success: false, message: 'Failed to get message counts' }
+  }
 } 
