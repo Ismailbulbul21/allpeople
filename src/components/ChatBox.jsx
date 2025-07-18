@@ -29,6 +29,7 @@ export const ChatBox = ({ nickname, refreshTrigger }) => {
   const fetchMessages = async () => {
     try {
       setError(null)
+      console.log('Fetching messages...')
       const { data, error } = await supabase
         .from('messages')
         .select('*')
@@ -36,9 +37,11 @@ export const ChatBox = ({ nickname, refreshTrigger }) => {
         .limit(100)
 
       if (error) {
+        console.error('Supabase error:', error)
         throw new Error(error.message)
       }
 
+      console.log('Messages fetched:', data?.length || 0)
       setMessages(data || [])
     } catch (err) {
       console.error('Error fetching messages:', err)
@@ -57,9 +60,9 @@ export const ChatBox = ({ nickname, refreshTrigger }) => {
   }, [messages])
 
   useEffect(() => {
-    // Set up real-time subscription
+    // Set up real-time subscription for messages
     const channel = supabase
-      .channel('messages')
+      .channel('public:messages')
       .on(
         'postgres_changes',
         {
@@ -68,13 +71,50 @@ export const ChatBox = ({ nickname, refreshTrigger }) => {
           table: 'messages'
         },
         (payload) => {
+          console.log('New message received:', payload.new)
           const newMessage = payload.new
-          setMessages(prev => [...prev, newMessage])
+          setMessages(prev => {
+            // Check if message already exists to avoid duplicates
+            const exists = prev.some(msg => msg.id === newMessage.id)
+            if (exists) return prev
+            return [...prev, newMessage]
+          })
         }
       )
-      .subscribe()
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages'
+        },
+        (payload) => {
+          console.log('Message updated:', payload.new)
+          const updatedMessage = payload.new
+          setMessages(prev => 
+            prev.map(msg => msg.id === updatedMessage.id ? updatedMessage : msg)
+          )
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'messages'
+        },
+        (payload) => {
+          console.log('Message deleted:', payload.old)
+          const deletedMessage = payload.old
+          setMessages(prev => prev.filter(msg => msg.id !== deletedMessage.id))
+        }
+      )
+      .subscribe((status) => {
+        console.log('Real-time subscription status:', status)
+      })
 
     return () => {
+      console.log('Cleaning up real-time subscription')
       supabase.removeChannel(channel)
     }
   }, [])

@@ -100,7 +100,8 @@ export const MessageInput = ({ nickname, onMessageSent, disabled }) => {
       }
 
       // Insert message into database
-      const { error: insertError } = await supabase
+      console.log('Sending message:', { nickname, content, imageUrl, audioUrl })
+      const { data, error: insertError } = await supabase
         .from('messages')
         .insert({
           nickname,
@@ -109,10 +110,14 @@ export const MessageInput = ({ nickname, onMessageSent, disabled }) => {
           audio_url: audioUrl || null,
           user_id: getUserId()
         })
+        .select()
 
       if (insertError) {
+        console.error('Insert error:', insertError)
         throw new Error(`Failed to send message: ${insertError.message}`)
       }
+
+      console.log('Message sent successfully:', data)
 
       // Reset form
       setMessage('')
