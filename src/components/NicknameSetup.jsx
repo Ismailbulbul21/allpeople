@@ -177,11 +177,20 @@ export const NicknameSetup = ({ onUserSetup }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
-        <div className="text-center mb-6">
-          <FaUser className="mx-auto text-4xl text-blue-500 mb-2" />
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Welcome to OpenChat
-          </h2>
+                  <div className="text-center mb-6">
+            <div className="relative mx-auto mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-green-500 via-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg mx-auto">
+                <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+                  <span className="text-sm font-bold text-transparent bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text">
+                    SO
+                  </span>
+                </div>
+              </div>
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Welcome to Somali oo dhan
+            </h2>
           <p className="text-gray-600 dark:text-gray-300 mt-2">
             {mode === 'register' 
               ? 'Choose a unique nickname to get started' 

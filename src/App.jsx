@@ -81,12 +81,19 @@ function App() {
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary-500 rounded-full">
-              <FaComments className="text-white" size={20} />
+            <div className="relative">
+              <div className="w-10 h-10 bg-gradient-to-br from-green-500 via-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                <div className="w-6 h-6 bg-white rounded-md flex items-center justify-center">
+                  <span className="text-xs font-bold text-transparent bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text">
+                    SO
+                  </span>
+                </div>
+              </div>
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                OpenChat Room
+                Somali oo dhan
               </h1>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Public chat • Messages delete after 24h
@@ -140,17 +147,24 @@ function App() {
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center p-4">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-primary-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                <FaComments className="text-white" size={24} />
+                      <div className="text-center">
+            <div className="relative mx-auto mb-4">
+              <div className="w-16 h-16 bg-gradient-to-br from-green-500 via-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg mx-auto">
+                <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
+                  <span className="text-lg font-bold text-transparent bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text">
+                    SO
+                  </span>
+                </div>
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                Welcome to OpenChat
-              </h2>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
-                A public chat room where messages automatically delete after 24 hours
-              </p>
-              <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white"></div>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+              Welcome to Somali oo dhan
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              A public chat room where messages automatically delete after 24 hours
+            </p>
+              <div className="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
             </div>
           </div>
         )}
