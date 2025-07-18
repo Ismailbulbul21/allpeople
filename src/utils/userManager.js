@@ -270,14 +270,15 @@ export const deleteMessage = async (messageId) => {
       return { success: false, message: 'You can only delete your own messages' }
     }
 
-    // Delete the message
+    // Delete the message with proper error handling
     const { error: deleteError } = await supabase
       .from('messages')
       .delete()
       .eq('id', messageId)
 
     if (deleteError) {
-      throw deleteError
+      console.error('Delete error:', deleteError)
+      return { success: false, message: `Failed to delete: ${deleteError.message}` }
     }
 
     return { success: true, message: 'Message deleted successfully' }

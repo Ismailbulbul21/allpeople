@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
-import { MessageBubble } from './MessageBubble'
+import { EnhancedMessageBubble } from './EnhancedMessageBubble'
 import { getNickname } from '../utils/storage'
 
-export const ChatBox = ({ nickname, refreshTrigger }) => {
+export const ChatBox = ({ nickname, refreshTrigger, currentUser, onReply }) => {
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -164,10 +164,12 @@ export const ChatBox = ({ nickname, refreshTrigger }) => {
       ) : (
         <>
           {messages.map((message) => (
-            <MessageBubble
+            <EnhancedMessageBubble
               key={message.id}
               message={message}
               isOwn={message.nickname === nickname}
+              currentUser={currentUser}
+              onReply={onReply}
             />
           ))}
           <div ref={messagesEndRef} />

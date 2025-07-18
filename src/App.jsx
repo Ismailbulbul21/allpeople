@@ -3,17 +3,22 @@ import { ChatBox } from './components/ChatBox'
 import { MessageInput } from './components/MessageInput'
 import { NicknameSetup } from './components/NicknameSetup'
 import { UserProfile } from './components/UserProfile'
+import { GroupMembersList } from './components/GroupMembersList'
+import { DailyQuestion } from './components/DailyQuestion'
 import { getNickname, getUserId, getDisplayNickname } from './utils/storage'
 import { getCurrentUser, updateLastActive } from './utils/userManager'
-import { FaMoon, FaSun, FaUser, FaComments } from 'react-icons/fa'
+import { initializeDailyQuestions } from './utils/dailyQuestionManager'
+import { FaMoon, FaSun, FaUser, FaComments, FaUsers } from 'react-icons/fa'
 
 function App() {
   const [user, setUser] = useState(null)
   const [showNicknamePrompt, setShowNicknamePrompt] = useState(false)
   const [showUserProfile, setShowUserProfile] = useState(false)
+  const [showGroupMembers, setShowGroupMembers] = useState(false)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
+  const [replyToMessage, setReplyToMessage] = useState(null)
 
   useEffect(() => {
     // Check for saved user
@@ -35,6 +40,9 @@ function App() {
     }
 
     checkUser()
+
+    // Initialize daily questions system
+    initializeDailyQuestions()
 
     // Check for dark mode preference
     const isDark = localStorage.getItem('darkMode') === 'true' || 
@@ -108,6 +116,13 @@ function App() {
                   {formatNickname(user.nickname)}
                 </span>
                 <button
+                  onClick={() => setShowGroupMembers(true)}
+                  className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                  title="Group members"
+                >
+                  <FaUsers size={14} />
+                </button>
+                <button
                   onClick={handleChangeNickname}
                   className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
                   title="User profile"
@@ -135,14 +150,24 @@ function App() {
         </div>
       )}
 
+      {/* Daily Question */}
+      {user && <DailyQuestion currentUser={user} />}
+
       {/* Chat Area */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {user ? (
           <>
-            <ChatBox nickname={user.nickname} refreshTrigger={refreshTrigger} />
+            <ChatBox 
+              nickname={user.nickname} 
+              refreshTrigger={refreshTrigger} 
+              currentUser={user}
+              onReply={setReplyToMessage}
+            />
             <MessageInput
               nickname={user.nickname}
               onMessageSent={handleMessageSent}
+              replyToMessage={replyToMessage}
+              onClearReply={() => setReplyToMessage(null)}
             />
           </>
         ) : (
@@ -181,6 +206,15 @@ function App() {
           user={user}
           onClose={() => setShowUserProfile(false)}
           onLogout={handleUserLogout}
+        />
+      )}
+
+      {/* Group Members Modal */}
+      {showGroupMembers && user && (
+        <GroupMembersList
+          isOpen={showGroupMembers}
+          onClose={() => setShowGroupMembers(false)}
+          currentUser={user}
         />
       )}
     </div>
