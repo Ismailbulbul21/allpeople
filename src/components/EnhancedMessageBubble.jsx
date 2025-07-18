@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { FaPlay, FaPause, FaExpand, FaVolumeUp, FaTrash, FaReply, FaHeart, FaThumbsUp, FaThumbsDown, FaFire, FaHandsHelping, FaCheck } from 'react-icons/fa'
 import { supabase } from '../lib/supabase'
 import { getDisplayNickname, getUserId } from '../utils/storage'
@@ -22,10 +22,60 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
   const [userReaction, setUserReaction] = useState(null)
   const [showReactionPicker, setShowReactionPicker] = useState(false)
   const [deleteSuccess, setDeleteSuccess] = useState(false)
+  const [isReacting, setIsReacting] = useState(false)
+  const [pendingReaction, setPendingReaction] = useState(null)
+  const [isMobile, setIsMobile] = useState(false)
+  
+  const reactionPickerRef = useRef(null)
+  const reactionTimeoutRef = useRef(null)
+
+  // Check if device is mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768)
+    }
+    
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   useEffect(() => {
     fetchReactions()
   }, [message.id])
+
+  // Close reaction picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (reactionPickerRef.current && !reactionPickerRef.current.contains(event.target)) {
+        setShowReactionPicker(false)
+      }
+    }
+
+    if (showReactionPicker) {
+      document.addEventListener('mousedown', handleClickOutside)
+      document.addEventListener('touchstart', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('touchstart', handleClickOutside)
+    }
+  }, [showReactionPicker])
+
+  // Prevent body scroll when reaction picker is open on mobile
+  useEffect(() => {
+    if (showReactionPicker && isMobile) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [showReactionPicker, isMobile])
 
   const fetchReactions = async () => {
     try {
@@ -49,45 +99,85 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
     }
   }
 
-  const handleReaction = async (reactionType) => {
-    if (!currentUser) return
+  // Debounced reaction handler for better performance
+  const handleReaction = useCallback(async (reactionType) => {
+    if (!currentUser || isReacting) return
 
-    try {
-      if (userReaction?.reaction_type === reactionType) {
-        // Remove reaction if clicking the same one
-        const { error } = await supabase
-          .from('message_reactions')
-          .delete()
-          .eq('message_id', message.id)
-          .eq('user_id', currentUser.id)
-
-        if (error) throw error
-      } else {
-        // Remove any existing reaction first, then add new one
-        await supabase
-          .from('message_reactions')
-          .delete()
-          .eq('message_id', message.id)
-          .eq('user_id', currentUser.id)
-
-        // Add new reaction
-        const { error } = await supabase
-          .from('message_reactions')
-          .insert({
-            message_id: message.id,
-            user_id: currentUser.id,
-            reaction_type: reactionType
-          })
-
-        if (error) throw error
-      }
-
-      await fetchReactions()
-      setShowReactionPicker(false)
-    } catch (error) {
-      console.error('Error handling reaction:', error)
+    // Clear any pending timeout
+    if (reactionTimeoutRef.current) {
+      clearTimeout(reactionTimeoutRef.current)
     }
-  }
+
+    // Set loading state
+    setIsReacting(true)
+    setPendingReaction(reactionType)
+
+    // Optimistic update
+    const isRemoving = userReaction?.reaction_type === reactionType
+    
+    if (isRemoving) {
+      setUserReaction(null)
+      setReactions(prev => prev.filter(r => r.user_id !== currentUser.id))
+    } else {
+      const newReaction = {
+        id: 'temp-' + Date.now(),
+        message_id: message.id,
+        user_id: currentUser.id,
+        reaction_type: reactionType,
+        users: { nickname: currentUser.nickname }
+      }
+      setUserReaction(newReaction)
+      setReactions(prev => {
+        const filtered = prev.filter(r => r.user_id !== currentUser.id)
+        return [...filtered, newReaction]
+      })
+    }
+
+    // Debounce the actual API call
+    reactionTimeoutRef.current = setTimeout(async () => {
+      try {
+        if (isRemoving) {
+          // Remove reaction
+          const { error } = await supabase
+            .from('message_reactions')
+            .delete()
+            .eq('message_id', message.id)
+            .eq('user_id', currentUser.id)
+
+          if (error) throw error
+        } else {
+          // Remove any existing reaction first, then add new one
+          await supabase
+            .from('message_reactions')
+            .delete()
+            .eq('message_id', message.id)
+            .eq('user_id', currentUser.id)
+
+          // Add new reaction
+          const { error } = await supabase
+            .from('message_reactions')
+            .insert({
+              message_id: message.id,
+              user_id: currentUser.id,
+              reaction_type: reactionType
+            })
+
+          if (error) throw error
+        }
+
+        // Refresh reactions to get the real data
+        await fetchReactions()
+      } catch (error) {
+        console.error('Error handling reaction:', error)
+        // Revert optimistic update on error
+        await fetchReactions()
+      } finally {
+        setIsReacting(false)
+        setPendingReaction(null)
+        setShowReactionPicker(false)
+      }
+    }, 150) // Reduced debounce time for better responsiveness
+  }, [currentUser, userReaction, message.id, isReacting])
 
   const formatTime = (timestamp) => {
     const date = new Date(timestamp)
@@ -157,7 +247,7 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
   return (
     <>
       <div className={`flex mb-6 ${isOwn ? 'justify-end' : 'justify-start'} animate-fadeIn group`}>
-        <div className={`max-w-sm lg:max-w-lg ${isOwn ? 'order-2' : 'order-1'}`}>
+        <div className={`max-w-sm lg:max-w-lg ${isOwn ? 'order-2' : 'order-1'} relative`}>
           {!isOwn && (
             <div className="flex items-center mb-2">
               <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-bold mr-2">
@@ -175,15 +265,17 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
                 ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white ml-4' 
                 : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white mr-4 border border-gray-200 dark:border-gray-700'
             }`}
-            onMouseEnter={() => setShowDeleteButton(true)}
-            onMouseLeave={() => setShowDeleteButton(false)}
+            onMouseEnter={() => !isMobile && setShowDeleteButton(true)}
+            onMouseLeave={() => !isMobile && setShowDeleteButton(false)}
           >
-            {/* Action Buttons */}
-            <div className={`absolute -top-3 ${isOwn ? '-left-3' : '-right-3'} flex space-x-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform group-hover:translate-y-1`}>
+            {/* Mobile/Desktop Action Buttons */}
+            <div className={`absolute -top-3 ${isOwn ? '-left-3' : '-right-3'} flex space-x-2 ${
+              isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+            } transition-all duration-300 transform group-hover:translate-y-1`}>
               {/* Reply Button */}
               <button
                 onClick={() => onReply(message)}
-                className="p-2.5 bg-blue-500 hover:bg-blue-600 rounded-full shadow-xl hover:shadow-2xl transition-all duration-200 hover:scale-110 border-2 border-white"
+                className="p-2.5 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 rounded-full shadow-xl hover:shadow-2xl transition-all duration-200 hover:scale-110 active:scale-95 border-2 border-white touch-manipulation"
                 title="Reply to this message"
               >
                 <FaReply size={12} className="text-white" />
@@ -192,10 +284,17 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
               {/* Reaction Button */}
               <button
                 onClick={() => setShowReactionPicker(!showReactionPicker)}
-                className="p-2.5 bg-pink-500 hover:bg-pink-600 rounded-full shadow-xl hover:shadow-2xl transition-all duration-200 hover:scale-110 border-2 border-white"
+                className={`p-2.5 rounded-full shadow-xl hover:shadow-2xl transition-all duration-200 hover:scale-110 active:scale-95 border-2 border-white touch-manipulation ${
+                  showReactionPicker ? 'bg-pink-600' : 'bg-pink-500 hover:bg-pink-600 active:bg-pink-700'
+                }`}
                 title="React to this message"
+                disabled={isReacting}
               >
-                <FaHeart size={12} className="text-white" />
+                {isReacting ? (
+                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <FaHeart size={12} className="text-white" />
+                )}
               </button>
 
               {/* Delete button for own messages */}
@@ -203,10 +302,10 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
                 <button
                   onClick={handleDeleteMessage}
                   disabled={isDeleting || deleteSuccess}
-                  className={`p-2.5 rounded-full shadow-xl hover:shadow-2xl transition-all duration-200 hover:scale-110 disabled:cursor-not-allowed border-2 border-white ${
+                  className={`p-2.5 rounded-full shadow-xl hover:shadow-2xl transition-all duration-200 hover:scale-110 active:scale-95 disabled:cursor-not-allowed border-2 border-white touch-manipulation ${
                     deleteSuccess 
                       ? 'bg-green-500 animate-pulse' 
-                      : 'bg-red-500 hover:bg-red-600 disabled:opacity-50'
+                      : 'bg-red-500 hover:bg-red-600 active:bg-red-700 disabled:opacity-50'
                   }`}
                   title={deleteSuccess ? "Message deleted!" : "Delete this message"}
                 >
@@ -220,28 +319,6 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
                 </button>
               )}
             </div>
-
-            {/* Reaction Picker */}
-            {showReactionPicker && (
-              <div className={`absolute ${isOwn ? 'left-2' : 'right-2'} top-12 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-2 flex space-x-1 z-20`}>
-                {Object.entries(REACTION_TYPES).map(([type, config]) => {
-                  const Icon = config.icon
-                  const isActive = userReaction?.reaction_type === type
-                  return (
-                    <button
-                      key={type}
-                      onClick={() => handleReaction(type)}
-                      className={`p-2 rounded-lg hover:scale-110 transition-all duration-200 ${
-                        isActive ? 'bg-blue-100 dark:bg-blue-900 scale-110' : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-                      }`}
-                      title={config.label}
-                    >
-                      <Icon size={18} className={config.color} />
-                    </button>
-                  )
-                })}
-              </div>
-            )}
 
             {/* Text content */}
             {message.content && (
@@ -309,7 +386,7 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
                     <button
                       key={type}
                       onClick={() => setShowReactions(!showReactions)}
-                      className={`flex items-center space-x-1 px-2 py-1 rounded-lg text-xs transition-all duration-200 hover:scale-105 ${
+                      className={`flex items-center space-x-1 px-2 py-1 rounded-lg text-xs transition-all duration-200 hover:scale-105 active:scale-95 touch-manipulation min-h-[28px] ${
                         isUserReaction 
                           ? 'bg-blue-500 text-white shadow-lg' 
                           : isOwn 
@@ -335,19 +412,96 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
         </div>
       </div>
 
-      {/* Reactions Detail Modal */}
+      {/* Mobile-Optimized Reaction Picker */}
+      {showReactionPicker && (
+        <>
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-30 z-40"
+            onClick={() => setShowReactionPicker(false)}
+          />
+          
+          {/* Reaction Picker */}
+          <div 
+            ref={reactionPickerRef}
+            className={`fixed z-50 ${
+              isMobile 
+                ? 'bottom-4 left-4 right-4 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-4'
+                : `${isOwn ? 'left-0 sm:left-2' : 'right-0 sm:right-2'} top-12 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-3 absolute`
+            } transform transition-all duration-200 scale-100 opacity-100`}
+            style={!isMobile ? {
+              maxWidth: 'calc(100vw - 2rem)',
+              left: isOwn ? 'auto' : '0',
+              right: isOwn ? '0' : 'auto',
+            } : {}}
+          >
+            {isMobile && (
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  React to message
+                </h3>
+                <button
+                  onClick={() => setShowReactionPicker(false)}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-1"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+            
+            <div className={`flex ${isMobile ? 'justify-center gap-4' : 'flex-wrap gap-2 justify-center'}`}>
+              {Object.entries(REACTION_TYPES).map(([type, config]) => {
+                const Icon = config.icon
+                const isActive = userReaction?.reaction_type === type
+                const isPending = pendingReaction === type
+                return (
+                  <button
+                    key={type}
+                    onClick={() => handleReaction(type)}
+                    disabled={isReacting}
+                    className={`${
+                      isMobile ? 'p-4 rounded-2xl min-w-[60px] min-h-[60px]' : 'p-3 rounded-lg min-w-[44px] min-h-[44px]'
+                    } transition-all duration-200 touch-manipulation flex items-center justify-center ${
+                      isActive 
+                        ? 'bg-blue-100 dark:bg-blue-900 scale-110 ring-2 ring-blue-500' 
+                        : 'hover:bg-gray-100 dark:hover:bg-gray-700 hover:scale-110 active:scale-95'
+                    } ${isReacting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    title={config.label}
+                  >
+                    {isPending ? (
+                      <div className={`${isMobile ? 'w-6 h-6' : 'w-4 h-4'} border-2 border-current border-t-transparent rounded-full animate-spin`}></div>
+                    ) : (
+                      <Icon size={isMobile ? 24 : 20} className={config.color} />
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Mobile-Optimized Reactions Detail Modal */}
       {showReactions && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
           onClick={() => setShowReactions(false)}
         >
           <div 
-            className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6"
+            className="bg-white dark:bg-gray-800 rounded-2xl max-w-sm w-full max-h-[80vh] overflow-y-auto p-6"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
-              Reactions
-            </h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                Reactions
+              </h3>
+              <button
+                onClick={() => setShowReactions(false)}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-1"
+              >
+                ✕
+              </button>
+            </div>
             <div className="space-y-3">
               {Object.entries(reactionCounts).map(([type, count]) => {
                 const config = REACTION_TYPES[type]
@@ -365,7 +519,7 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
                       <div className="text-sm font-bold text-gray-900 dark:text-white">
                         {count}
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 max-w-[150px] truncate">
                         {users}
                       </div>
                     </div>
@@ -391,7 +545,7 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
             />
             <button
               onClick={() => setIsImageExpanded(false)}
-              className="absolute top-4 right-4 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 transition-all"
+              className="absolute top-4 right-4 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 transition-all touch-manipulation"
             >
               ✕
             </button>

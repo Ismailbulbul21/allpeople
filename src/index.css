@@ -11,12 +11,81 @@
   body {
     @apply bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100;
   }
+  
+  /* Mobile optimizations */
+  @media (max-width: 768px) {
+    html {
+      /* Prevent zoom on input focus */
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+    }
+    
+    body {
+      /* Improve touch scrolling */
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+    }
+  }
 }
 
 @layer components {
   /* Modern animations */
   .animate-fadeIn {
     animation: fadeIn 0.3s ease-out;
+  }
+  
+  /* Touch-friendly button styles */
+  .touch-manipulation {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  
+  /* Improved reaction picker for mobile */
+  .reaction-picker-mobile {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    max-width: calc(100vw - 2rem);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+  
+  /* Better mobile modal positioning */
+  .mobile-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Prevent background scroll when modal is open */
+  .modal-open {
+    overflow: hidden;
+    height: 100vh;
+  }
+  
+  /* Smooth transitions for reactions */
+  .reaction-transition {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  /* Better loading spinner */
+  .loading-spinner {
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top: 2px solid #ffffff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
   }
   
   /* Modern audio player styling */
@@ -69,16 +138,63 @@
     background: rgba(156, 163, 175, 0.5);
   }
   
+  /* Mobile-specific scrollbar */
+  @media (max-width: 768px) {
+    .scrollbar-thin::-webkit-scrollbar {
+      width: 4px;
+    }
+  }
+  
   .input-field {
     @apply w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100;
   }
   
+  /* Mobile-optimized input */
+  @media (max-width: 768px) {
+    .input-field {
+      font-size: 16px; /* Prevent zoom on iOS */
+    }
+  }
+  
   .btn-primary {
-    @apply bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation;
   }
   
   .btn-secondary {
-    @apply bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-medium transition-colors;
+    @apply bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-medium transition-colors touch-manipulation;
+  }
+  
+  /* Mobile-specific button improvements */
+  @media (max-width: 768px) {
+    .btn-primary, .btn-secondary {
+      min-height: 44px; /* Apple's recommended touch target size */
+      padding: 12px 16px;
+    }
+  }
+  
+  /* Improved group hover for mobile */
+  @media (hover: none) {
+    .group:hover .group-hover\\:opacity-100 {
+      opacity: 1;
+    }
+    
+    .group:hover .group-hover\\:translate-y-1 {
+      transform: translateY(0.25rem);
+    }
+  }
+  
+  /* Better focus styles for accessibility */
+  .focus-visible {
+    outline: 2px solid var(--primary-500);
+    outline-offset: 2px;
+  }
+  
+  /* Prevent text selection on interactive elements */
+  .no-select {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
   }
 }
 
@@ -90,5 +206,16 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Optimize for mobile performance */
+@media (max-width: 768px) {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  .animate-fadeIn {
+    animation-duration: 0.2s; /* Faster animations on mobile */
   }
 }
