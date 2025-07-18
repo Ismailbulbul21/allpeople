@@ -150,7 +150,7 @@ function App() {
         </div>
       )}
 
-      {/* Daily Question */}
+      {/* Daily Question - Always show when user is logged in */}
       {user && <DailyQuestion currentUser={user} />}
 
       {/* Chat Area */}

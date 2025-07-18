@@ -18,6 +18,12 @@ export const DailyQuestion = ({ currentUser }) => {
 
   useEffect(() => {
     fetchDailyQuestion()
+  }, [])
+
+  useEffect(() => {
+    if (currentUser) {
+      fetchDailyQuestion()
+    }
   }, [currentUser])
 
   useEffect(() => {
@@ -51,29 +57,49 @@ export const DailyQuestion = ({ currentUser }) => {
 
       if (error && error.code !== 'PGRST116') {
         console.error('Error fetching daily question:', error)
-        return
       }
 
       if (data) {
         setDailyQuestion(data)
       } else {
-        // If no question for today, get the first question (default)
-        const { data: firstQuestion, error: firstError } = await supabase
+        // If no question for today, get the most recent active question
+        const { data: activeQuestion, error: activeError } = await supabase
           .from('daily_questions')
           .select('*')
-          .order('created_at', { ascending: true })
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
           .limit(1)
           .single()
 
-        if (firstError && firstError.code !== 'PGRST116') {
-          console.error('Error fetching first question:', error)
-          return
+        if (activeError && activeError.code !== 'PGRST116') {
+          console.error('Error fetching active question:', activeError)
         }
 
-        setDailyQuestion(firstQuestion)
+        if (activeQuestion) {
+          setDailyQuestion(activeQuestion)
+        } else {
+          // Fallback: Create the default question if none exists
+          const fallbackQuestion = {
+            id: 'fallback',
+            question_somali: "Magacaaga oo dhameestiran, meesha aad joogtaa, ma arday baa tahay mise waad dhameesay wax barashada?",
+            question_text: "What is your full name, where are you located, are you a student or have you completed your studies?",
+            created_at: new Date().toISOString(),
+            is_active: true
+          }
+          setDailyQuestion(fallbackQuestion)
+        }
       }
     } catch (error) {
       console.error('Error fetching daily question:', error)
+      // Always show fallback question if there's an error
+      const fallbackQuestion = {
+        id: 'fallback',
+        question_somali: "Magacaaga oo dhameestiran, meesha aad joogtaa, ma arday baa tahay mise waad dhameesay wax barashada?",
+        question_text: "What is your full name, where are you located, are you a student or have you completed your studies?",
+        created_at: new Date().toISOString(),
+        is_active: true
+      }
+      setDailyQuestion(fallbackQuestion)
     }
   }
 
@@ -233,108 +259,140 @@ export const DailyQuestion = ({ currentUser }) => {
     return `${diffHours}h ${diffMins}m left`
   }
 
-  if (!dailyQuestion) return null
-
   const isExpiringSoon = timeProgress > 90
   const isExpiringSoon2Hours = timeProgress > 75
 
+  // Always show the component, even if loading
   return (
-    <div className={`text-white sticky top-0 z-40 shadow-lg transition-all duration-500 ${
+    <div className={`text-white sticky top-0 z-50 shadow-2xl transition-all duration-500 border-b-4 border-white border-opacity-20 ${
       isExpiringSoon ? 'bg-gradient-to-r from-red-500 to-red-600' :
       isExpiringSoon2Hours ? 'bg-gradient-to-r from-orange-500 to-orange-600' :
       'bg-gradient-to-r from-green-500 to-blue-600'
     }`}>
-      <div className="px-4 py-3">
+      <div className="px-4 py-4">
         {/* Question Header */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center space-x-2">
-            <FaPin className="text-yellow-300" size={16} />
-            <span className="font-bold text-sm">Daily Question</span>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-yellow-400 rounded-full">
+              <FaPin className="text-yellow-900" size={18} />
+            </div>
+            <div>
+              <span className="font-bold text-lg">Daily Question</span>
+              <p className="text-xs opacity-90">Everyone must answer!</p>
+            </div>
           </div>
-          <div className={`flex items-center space-x-2 text-xs px-2 py-1 rounded-full ${
-            timeProgress > 90 ? 'bg-red-500 bg-opacity-80 animate-pulse' : 
-            timeProgress > 75 ? 'bg-orange-500 bg-opacity-60' : 
-            'bg-white bg-opacity-20'
+          <div className={`flex items-center space-x-2 text-sm px-3 py-2 rounded-full font-bold ${
+            timeProgress > 90 ? 'bg-red-500 bg-opacity-90 animate-pulse' : 
+            timeProgress > 75 ? 'bg-orange-500 bg-opacity-70' : 
+            'bg-white bg-opacity-25'
           }`}>
-            <FaClock size={12} />
-            <span className="font-bold">{timeLeft}</span>
+            <FaClock size={14} />
+            <span>{timeLeft}</span>
           </div>
         </div>
 
         {/* Question Text */}
-        <div className="mb-3">
-          {isExpiringSoon && !userAnswer && (
-            <div className="mb-2 bg-red-600 bg-opacity-80 px-3 py-2 rounded-lg border border-red-400">
-              <p className="text-xs font-bold animate-pulse">
-                ⚠️ URGENT: Question expires soon! Answer now before it's too late!
-              </p>
+        <div className="mb-4">
+          {!dailyQuestion ? (
+            <div className="bg-white bg-opacity-15 rounded-xl p-4 mb-3">
+              <div className="animate-pulse">
+                <div className="flex items-center mb-3">
+                  <div className="w-6 h-6 bg-white bg-opacity-30 rounded mr-2"></div>
+                  <div className="h-4 bg-white bg-opacity-30 rounded flex-1"></div>
+                </div>
+                <div className="h-3 bg-white bg-opacity-20 rounded w-3/4 mb-2"></div>
+                <div className="h-3 bg-white bg-opacity-20 rounded w-1/2"></div>
+              </div>
+              <div className="text-center mt-4">
+                <div className="inline-flex items-center text-sm font-medium">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  Loading today's question...
+                </div>
+              </div>
             </div>
+          ) : (
+            <>
+              {isExpiringSoon && !userAnswer && (
+                <div className="mb-3 bg-red-600 bg-opacity-90 px-4 py-3 rounded-xl border-2 border-red-400 shadow-lg">
+                  <p className="text-sm font-bold animate-pulse flex items-center">
+                    <span className="text-lg mr-2">⚠️</span>
+                    URGENT: Question expires soon! Answer now before it's too late!
+                  </p>
+                </div>
+              )}
+              <div className="bg-white bg-opacity-15 rounded-xl p-4 mb-3">
+                <p className="text-base font-bold mb-2 leading-relaxed">
+                  🇸🇴 {dailyQuestion.question_somali}
+                </p>
+                <p className="text-sm opacity-90 leading-relaxed">
+                  🇬🇧 {dailyQuestion.question_text}
+                </p>
+              </div>
+            </>
           )}
-          <p className="text-sm font-medium mb-1">
-            {dailyQuestion.question_somali}
-          </p>
-          <p className="text-xs opacity-90">
-            {dailyQuestion.question_text}
-          </p>
         </div>
 
         {/* Time Progress Bar */}
-        <div className="mb-3">
-          <div className="w-full bg-white bg-opacity-20 rounded-full h-2">
-            <div 
-              className={`h-2 rounded-full transition-all duration-1000 ease-out ${
-                timeProgress > 90 ? 'bg-red-400' : 
-                timeProgress > 75 ? 'bg-orange-400' : 
-                timeProgress > 50 ? 'bg-yellow-300' : 
-                'bg-green-400'
-              }`}
-              style={{ width: `${timeProgress}%` }}
-            ></div>
+        {dailyQuestion && (
+          <div className="mb-4">
+            <div className="w-full bg-white bg-opacity-25 rounded-full h-3 shadow-inner">
+              <div 
+                className={`h-3 rounded-full transition-all duration-1000 ease-out shadow-sm ${
+                  timeProgress > 90 ? 'bg-red-400 shadow-red-500/50' : 
+                  timeProgress > 75 ? 'bg-orange-400 shadow-orange-500/50' : 
+                  timeProgress > 50 ? 'bg-yellow-300 shadow-yellow-500/50' : 
+                  'bg-green-400 shadow-green-500/50'
+                }`}
+                style={{ width: `${timeProgress}%` }}
+              ></div>
+            </div>
+            <div className="flex justify-between text-xs mt-2 opacity-80 font-medium">
+              <span>🕐 Question started</span>
+              <span>⏰ 24h expires</span>
+            </div>
           </div>
-          <div className="flex justify-between text-xs mt-1 opacity-75">
-            <span>Question started</span>
-            <span>24h expires</span>
-          </div>
-        </div>
+        )}
 
         {/* User's Answer Status */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            {userAnswer ? (
-              <div className="flex items-center space-x-2">
-                <FaCheck className="text-green-300" size={14} />
-                <span className="text-xs">You answered at {formatTime(userAnswer.created_at)}</span>
-              </div>
-            ) : (
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-yellow-300 rounded-full animate-pulse"></div>
-                <span className="text-xs">Waiting for your answer...</span>
-              </div>
-            )}
-          </div>
+        {dailyQuestion && (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              {userAnswer ? (
+                <div className="flex items-center space-x-2 bg-green-500 bg-opacity-20 px-3 py-2 rounded-full">
+                  <FaCheck className="text-green-300" size={16} />
+                  <span className="text-sm font-medium">Answered at {formatTime(userAnswer.created_at)}</span>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2 bg-yellow-500 bg-opacity-20 px-3 py-2 rounded-full">
+                  <div className="w-3 h-3 bg-yellow-300 rounded-full animate-pulse"></div>
+                  <span className="text-sm font-medium">Waiting for your answer...</span>
+                </div>
+              )}
+            </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => {
-                fetchAllAnswers()
-                setShowAllAnswers(true)
-              }}
-              className="text-xs bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded-full transition-colors"
-            >
-              View All ({allAnswers.length})
-            </button>
-            
-            {!userAnswer && (
+            {/* Action Buttons */}
+            <div className="flex items-center space-x-3">
               <button
-                onClick={() => setShowAnswerForm(true)}
-                className="text-xs bg-yellow-400 text-yellow-900 hover:bg-yellow-300 px-3 py-1 rounded-full font-medium transition-colors"
+                onClick={() => {
+                  fetchAllAnswers()
+                  setShowAllAnswers(true)
+                }}
+                className="text-sm bg-white bg-opacity-25 hover:bg-opacity-35 px-4 py-2 rounded-full transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
               >
-                Answer Now
+                👥 View All ({allAnswers.length})
               </button>
-            )}
+              
+              {!userAnswer && (
+                <button
+                  onClick={() => setShowAnswerForm(true)}
+                  className="text-sm bg-yellow-400 text-yellow-900 hover:bg-yellow-300 px-4 py-2 rounded-full font-bold transition-all duration-200 shadow-lg hover:shadow-xl animate-pulse"
+                >
+                  🎤 Answer Now!
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Answer Form Modal */}
