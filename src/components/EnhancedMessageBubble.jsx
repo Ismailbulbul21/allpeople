@@ -54,20 +54,26 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
 
     try {
       if (userReaction?.reaction_type === reactionType) {
-        // Remove reaction
+        // Remove reaction if clicking the same one
         const { error } = await supabase
           .from('message_reactions')
           .delete()
           .eq('message_id', message.id)
           .eq('user_id', currentUser.id)
-          .eq('reaction_type', reactionType)
 
         if (error) throw error
       } else {
-        // Add or update reaction
+        // Remove any existing reaction first, then add new one
+        await supabase
+          .from('message_reactions')
+          .delete()
+          .eq('message_id', message.id)
+          .eq('user_id', currentUser.id)
+
+        // Add new reaction
         const { error } = await supabase
           .from('message_reactions')
-          .upsert({
+          .insert({
             message_id: message.id,
             user_id: currentUser.id,
             reaction_type: reactionType
@@ -217,7 +223,7 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
 
             {/* Reaction Picker */}
             {showReactionPicker && (
-              <div className={`absolute ${isOwn ? 'left-2' : 'right-2'} top-10 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-2 flex space-x-2 z-10`}>
+              <div className={`absolute ${isOwn ? 'left-2' : 'right-2'} top-12 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-2 flex space-x-1 z-20`}>
                 {Object.entries(REACTION_TYPES).map(([type, config]) => {
                   const Icon = config.icon
                   const isActive = userReaction?.reaction_type === type
@@ -225,12 +231,12 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
                     <button
                       key={type}
                       onClick={() => handleReaction(type)}
-                      className={`p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
-                        isActive ? 'bg-blue-100 dark:bg-blue-900' : ''
+                      className={`p-2 rounded-lg hover:scale-110 transition-all duration-200 ${
+                        isActive ? 'bg-blue-100 dark:bg-blue-900 scale-110' : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                       }`}
                       title={config.label}
                     >
-                      <Icon size={16} className={config.color} />
+                      <Icon size={18} className={config.color} />
                     </button>
                   )
                 })}
@@ -294,23 +300,26 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
             
             {/* Reactions Display */}
             {hasReactions && (
-              <div className="mt-3 flex flex-wrap gap-1">
+              <div className="mt-3 flex flex-wrap gap-2">
                 {Object.entries(reactionCounts).map(([type, count]) => {
                   const config = REACTION_TYPES[type]
                   const Icon = config.icon
+                  const isUserReaction = userReaction?.reaction_type === type
                   return (
                     <button
                       key={type}
                       onClick={() => setShowReactions(!showReactions)}
-                      className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs ${
-                        isOwn 
-                          ? 'bg-blue-600/30 text-blue-100' 
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
-                      } hover:opacity-80 transition-opacity`}
+                      className={`flex items-center space-x-1 px-2 py-1 rounded-lg text-xs transition-all duration-200 hover:scale-105 ${
+                        isUserReaction 
+                          ? 'bg-blue-500 text-white shadow-lg' 
+                          : isOwn 
+                          ? 'bg-blue-600/20 text-blue-100 hover:bg-blue-600/30' 
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      }`}
                       title={`${config.label}: ${getReactionUsers(type)}`}
                     >
-                      <Icon size={12} className={config.color} />
-                      <span>{count}</span>
+                      <Icon size={12} className={isUserReaction ? 'text-white' : config.color} />
+                      <span className="font-medium">{count}</span>
                     </button>
                   )
                 })}

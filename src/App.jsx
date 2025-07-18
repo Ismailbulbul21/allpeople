@@ -87,61 +87,37 @@ function App() {
       {/* Daily Question Header */}
       {user && (
         <div className="bg-gradient-to-r from-green-500 to-blue-600 text-white sticky top-0 z-50 shadow-lg">
-          <div className="px-4 py-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-white bg-opacity-20 rounded-full">
-                  <span className="text-2xl">📌</span>
-                </div>
+          <div className="px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">📌</span>
                 <div>
-                  <h2 className="text-lg font-bold">Daily Question</h2>
-                  <p className="text-sm opacity-90">Everyone must answer!</p>
+                  <span className="font-bold text-sm">🇸🇴 Magacaaga oo dhameestiran, meesha aad joogtaa, maxaad qabataa?</span>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowGroupMembers(true)}
-                  className="p-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition-colors"
+                  className="p-1.5 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition-colors"
                   title="Group members"
                 >
-                  <FaUsers size={16} />
+                  <FaUsers size={14} />
                 </button>
                 <button
                   onClick={handleChangeNickname}
-                  className="p-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition-colors"
+                  className="p-1.5 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition-colors"
                   title="User profile"
                 >
-                  <FaUser size={16} />
+                  <FaUser size={14} />
                 </button>
                 <button
                   onClick={toggleDarkMode}
-                  className="p-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition-colors"
+                  className="p-1.5 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition-colors"
                   title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
                 >
-                  {isDarkMode ? <FaSun size={16} /> : <FaMoon size={16} />}
+                  {isDarkMode ? <FaSun size={14} /> : <FaMoon size={14} />}
                 </button>
               </div>
-            </div>
-            
-            {/* Question */}
-            <div className="bg-white bg-opacity-15 rounded-xl p-4 mb-3">
-              <p className="text-lg font-bold mb-2">
-                🇸🇴 Magacaaga oo dhameestiran, meesha aad joogtaa, maxaad qabataa?
-              </p>
-              <p className="text-sm opacity-90">
-                🇬🇧 What is your full name, where are you located, and what do you do?
-              </p>
-            </div>
-            
-            {/* Actions */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-yellow-300 rounded-full animate-pulse"></div>
-                <span className="text-sm">Waiting for your answer...</span>
-              </div>
-              <button className="bg-yellow-400 text-yellow-900 px-4 py-2 rounded-full font-bold hover:bg-yellow-300 transition-colors">
-                🎤 Answer Now!
-              </button>
             </div>
           </div>
         </div>
