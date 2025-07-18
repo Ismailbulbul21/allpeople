@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react'
 import { FaPaperPlane, FaImage, FaTimes } from 'react-icons/fa'
 import { AudioRecorder } from './AudioRecorder'
 import { supabase } from '../lib/supabase'
-import { generateFileName, compressImage, formatFileSize, getUserId } from '../utils/storage'
+import { generateFileName, getUserId } from '../utils/storage'
 
 export const MessageInput = ({ nickname, onMessageSent, disabled }) => {
   const [message, setMessage] = useState('')
@@ -16,16 +16,10 @@ export const MessageInput = ({ nickname, onMessageSent, disabled }) => {
   const textareaRef = useRef(null)
 
   const RATE_LIMIT_MS = 3000 // 3 seconds between messages
-  const MAX_IMAGE_SIZE = 1024 * 1024 // 1MB
 
   const handleImageSelect = (event) => {
     const file = event.target.files?.[0]
     if (!file) return
-
-    if (file.size > MAX_IMAGE_SIZE) {
-      setError(`Image too large (max ${formatFileSize(MAX_IMAGE_SIZE)})`)
-      return
-    }
 
     if (!file.type.startsWith('image/')) {
       setError('Please select an image file')
@@ -88,9 +82,8 @@ export const MessageInput = ({ nickname, onMessageSent, disabled }) => {
 
       // Upload image if present
       if (imageFile) {
-        const compressedImage = await compressImage(imageFile)
-        const fileName = generateFileName(nickname, 'jpg')
-        imageUrl = await uploadFile(compressedImage, fileName)
+        const fileName = generateFileName(nickname, imageFile.name.split('.').pop())
+        imageUrl = await uploadFile(imageFile, fileName)
       }
 
       // Upload audio if present
@@ -236,6 +229,15 @@ export const MessageInput = ({ nickname, onMessageSent, disabled }) => {
           </button>
         </div>
       </form>
+
+      {/* Hidden file input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleImageSelect}
+        accept="image/*"
+        className="hidden"
+      />
     </div>
   )
 } 
