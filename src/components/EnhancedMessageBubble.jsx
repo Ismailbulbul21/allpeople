@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { FaPlay, FaPause, FaExpand, FaVolumeUp, FaTrash, FaReply, FaHeart, FaThumbsUp, FaThumbsDown, FaFire, FaHandsHelping, FaCheck } from 'react-icons/fa'
+import { FaPlay, FaPause, FaExpand, FaVolumeUp, FaTrash, FaReply, FaHeart, FaThumbsUp, FaThumbsDown, FaFire, FaHandsHelping, FaCheck, FaEllipsisH } from 'react-icons/fa'
 import { supabase } from '../lib/supabase'
 import { getDisplayNickname, getUserId } from '../utils/storage'
 import { deleteMessage } from '../utils/userManager'
@@ -16,7 +16,7 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
   const [isImageExpanded, setIsImageExpanded] = useState(false)
   const [isAudioPlaying, setIsAudioPlaying] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [showDeleteButton, setShowDeleteButton] = useState(false)
+  const [showActions, setShowActions] = useState(false)
   const [showReactions, setShowReactions] = useState(false)
   const [reactions, setReactions] = useState([])
   const [userReaction, setUserReaction] = useState(null)
@@ -246,7 +246,7 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
 
   return (
     <>
-      <div className={`flex mb-6 ${isOwn ? 'justify-end' : 'justify-start'} animate-fadeIn group`}>
+      <div className={`flex mb-4 ${isOwn ? 'justify-end' : 'justify-start'} animate-fadeIn group`}>
         <div className={`max-w-sm lg:max-w-lg ${isOwn ? 'order-2' : 'order-1'} relative`}>
           {!isOwn && (
             <div className="flex items-center mb-2">
@@ -265,64 +265,72 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
                 ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white ml-4' 
                 : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white mr-4 border border-gray-200 dark:border-gray-700'
             }`}
-            onMouseEnter={() => !isMobile && setShowDeleteButton(true)}
-            onMouseLeave={() => !isMobile && setShowDeleteButton(false)}
+            onMouseEnter={() => !isMobile && setShowActions(true)}
+            onMouseLeave={() => !isMobile && setShowActions(false)}
           >
-            {/* Mobile/Desktop Action Buttons */}
-            <div className={`absolute -top-3 ${isOwn ? '-left-3' : '-right-3'} flex space-x-2 ${
-              isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-            } transition-all duration-300 transform group-hover:translate-y-1`}>
-              {/* Reply Button */}
-              <button
-                onClick={() => onReply(message)}
-                className="p-2.5 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 rounded-full shadow-xl hover:shadow-2xl transition-all duration-200 hover:scale-110 active:scale-95 border-2 border-white touch-manipulation"
-                title="Reply to this message"
-              >
-                <FaReply size={12} className="text-white" />
-              </button>
-
-              {/* Reaction Button */}
-              <button
-                onClick={() => setShowReactionPicker(!showReactionPicker)}
-                className={`p-2.5 rounded-full shadow-xl hover:shadow-2xl transition-all duration-200 hover:scale-110 active:scale-95 border-2 border-white touch-manipulation ${
-                  showReactionPicker ? 'bg-pink-600' : 'bg-pink-500 hover:bg-pink-600 active:bg-pink-700'
-                }`}
-                title="React to this message"
-                disabled={isReacting}
-              >
-                {isReacting ? (
-                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                ) : (
-                  <FaHeart size={12} className="text-white" />
-                )}
-              </button>
-
-              {/* Delete button for own messages */}
-              {isOwn && (
+            {/* Subtle Action Menu - Top Right Corner */}
+            <div className={`absolute top-2 right-2 ${
+              isMobile ? 'opacity-100' : showActions ? 'opacity-100' : 'opacity-0'
+            } transition-opacity duration-200`}>
+              <div className="flex items-center space-x-1">
+                {/* Quick React Button */}
                 <button
-                  onClick={handleDeleteMessage}
-                  disabled={isDeleting || deleteSuccess}
-                  className={`p-2.5 rounded-full shadow-xl hover:shadow-2xl transition-all duration-200 hover:scale-110 active:scale-95 disabled:cursor-not-allowed border-2 border-white touch-manipulation ${
-                    deleteSuccess 
-                      ? 'bg-green-500 animate-pulse' 
-                      : 'bg-red-500 hover:bg-red-600 active:bg-red-700 disabled:opacity-50'
+                  onClick={() => setShowReactionPicker(!showReactionPicker)}
+                  className={`p-1.5 rounded-full transition-all duration-200 hover:scale-110 ${
+                    isOwn 
+                      ? 'bg-blue-600/20 hover:bg-blue-600/40 text-blue-100' 
+                      : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300'
                   }`}
-                  title={deleteSuccess ? "Message deleted!" : "Delete this message"}
+                  title="React"
+                  disabled={isReacting}
                 >
-                  {isDeleting ? (
-                    <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  ) : deleteSuccess ? (
-                    <FaCheck size={12} className="text-white" />
+                  {isReacting ? (
+                    <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin"></div>
                   ) : (
-                    <FaTrash size={12} className="text-white" />
+                    <FaHeart size={10} />
                   )}
                 </button>
-              )}
+
+                {/* Reply Button */}
+                <button
+                  onClick={() => onReply(message)}
+                  className={`p-1.5 rounded-full transition-all duration-200 hover:scale-110 ${
+                    isOwn 
+                      ? 'bg-blue-600/20 hover:bg-blue-600/40 text-blue-100' 
+                      : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300'
+                  }`}
+                  title="Reply"
+                >
+                  <FaReply size={10} />
+                </button>
+
+                {/* Delete Button (Own Messages Only) */}
+                {isOwn && (
+                  <button
+                    onClick={handleDeleteMessage}
+                    disabled={isDeleting || deleteSuccess}
+                    className={`p-1.5 rounded-full transition-all duration-200 hover:scale-110 ${
+                      deleteSuccess 
+                        ? 'bg-green-500/20 text-green-100' 
+                        : 'bg-red-500/20 hover:bg-red-500/40 text-red-100 disabled:opacity-50'
+                    }`}
+                    title={deleteSuccess ? "Deleted!" : "Delete"}
+                  >
+                    {isDeleting ? (
+                      <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin"></div>
+                    ) : deleteSuccess ? (
+                      <FaCheck size={10} />
+                    ) : (
+                      <FaTrash size={10} />
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Text content */}
             {message.content && (
-              <div className="whitespace-pre-wrap break-words leading-relaxed">
+              <div className="whitespace-pre-wrap break-words leading-relaxed pr-16">
                 {message.content}
               </div>
             )}
@@ -339,25 +347,25 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
                 />
                 <button
                   onClick={handleImageClick}
-                  className="absolute top-2 right-2 bg-black bg-opacity-50 text-white p-1 rounded-full opacity-0 hover:opacity-100 transition-opacity"
+                  className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white p-1 rounded-full opacity-0 hover:opacity-100 transition-opacity"
                   title="Expand image"
                 >
-                  <FaExpand size={12} />
+                  <FaExpand size={10} />
                 </button>
               </div>
             )}
             
             {/* Audio content */}
             {message.audio_url && (
-              <div className="mt-2">
+              <div className="mt-2 pr-16">
                 <div className={`flex items-center p-3 rounded-xl ${isOwn ? 'bg-blue-600/20' : 'bg-gray-100 dark:bg-gray-700'}`}>
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center mr-3 ${isOwn ? 'bg-blue-500' : 'bg-gray-400'}`}>
-                    <FaVolumeUp className="text-white" size={16} />
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 ${isOwn ? 'bg-blue-500' : 'bg-gray-400'}`}>
+                    <FaVolumeUp className="text-white" size={12} />
                   </div>
                   <div className="flex-1">
                     <audio
                       controls
-                      className="w-full h-8 audio-player"
+                      className="w-full h-6 audio-player"
                       onPlay={(e) => handleAudioPlay(e.target)}
                       onPause={handleAudioPause}
                       style={{
@@ -377,7 +385,7 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
             
             {/* Reactions Display */}
             {hasReactions && (
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-3 flex flex-wrap gap-1">
                 {Object.entries(reactionCounts).map(([type, count]) => {
                   const config = REACTION_TYPES[type]
                   const Icon = config.icon
@@ -386,17 +394,17 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
                     <button
                       key={type}
                       onClick={() => setShowReactions(!showReactions)}
-                      className={`flex items-center space-x-1 px-2 py-1 rounded-lg text-xs transition-all duration-200 hover:scale-105 active:scale-95 touch-manipulation min-h-[28px] ${
+                      className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs transition-all duration-200 hover:scale-105 active:scale-95 touch-manipulation ${
                         isUserReaction 
-                          ? 'bg-blue-500 text-white shadow-lg' 
+                          ? 'bg-blue-500 text-white shadow-sm' 
                           : isOwn 
                           ? 'bg-blue-600/20 text-blue-100 hover:bg-blue-600/30' 
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                       title={`${config.label}: ${getReactionUsers(type)}`}
                     >
-                      <Icon size={12} className={isUserReaction ? 'text-white' : config.color} />
-                      <span className="font-medium">{count}</span>
+                      <Icon size={10} className={isUserReaction ? 'text-white' : config.color} />
+                      <span className="font-medium text-xs">{count}</span>
                     </button>
                   )
                 })}
@@ -427,13 +435,8 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
             className={`fixed z-50 ${
               isMobile 
                 ? 'bottom-4 left-4 right-4 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-4'
-                : `${isOwn ? 'left-0 sm:left-2' : 'right-0 sm:right-2'} top-12 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-3 absolute`
-            } transform transition-all duration-200 scale-100 opacity-100`}
-            style={!isMobile ? {
-              maxWidth: 'calc(100vw - 2rem)',
-              left: isOwn ? 'auto' : '0',
-              right: isOwn ? '0' : 'auto',
-            } : {}}
+                : `${isOwn ? 'right-4' : 'left-4'} top-1/2 transform -translate-y-1/2 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-3`
+            } transition-all duration-200 scale-100 opacity-100`}
           >
             {isMobile && (
               <div className="flex justify-between items-center mb-3">
@@ -449,7 +452,7 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
               </div>
             )}
             
-            <div className={`flex ${isMobile ? 'justify-center gap-4' : 'flex-wrap gap-2 justify-center'}`}>
+            <div className={`flex ${isMobile ? 'justify-center gap-4' : 'flex-col gap-2'}`}>
               {Object.entries(REACTION_TYPES).map(([type, config]) => {
                 const Icon = config.icon
                 const isActive = userReaction?.reaction_type === type
@@ -460,7 +463,7 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
                     onClick={() => handleReaction(type)}
                     disabled={isReacting}
                     className={`${
-                      isMobile ? 'p-4 rounded-2xl min-w-[60px] min-h-[60px]' : 'p-3 rounded-lg min-w-[44px] min-h-[44px]'
+                      isMobile ? 'p-4 rounded-2xl min-w-[60px] min-h-[60px]' : 'p-2 rounded-lg min-w-[36px] min-h-[36px]'
                     } transition-all duration-200 touch-manipulation flex items-center justify-center ${
                       isActive 
                         ? 'bg-blue-100 dark:bg-blue-900 scale-110 ring-2 ring-blue-500' 
@@ -469,9 +472,9 @@ export const EnhancedMessageBubble = ({ message, isOwn, currentUser, onReply }) 
                     title={config.label}
                   >
                     {isPending ? (
-                      <div className={`${isMobile ? 'w-6 h-6' : 'w-4 h-4'} border-2 border-current border-t-transparent rounded-full animate-spin`}></div>
+                      <div className={`${isMobile ? 'w-6 h-6' : 'w-3 h-3'} border-2 border-current border-t-transparent rounded-full animate-spin`}></div>
                     ) : (
-                      <Icon size={isMobile ? 24 : 20} className={config.color} />
+                      <Icon size={isMobile ? 24 : 16} className={config.color} />
                     )}
                   </button>
                 )
