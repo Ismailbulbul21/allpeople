@@ -84,47 +84,8 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
-      {/* Daily Question Header */}
-      {user && (
-        <div className="bg-gradient-to-r from-green-500 to-blue-600 text-white sticky top-0 z-50 shadow-lg">
-          <div className="px-4 py-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">📌</span>
-                <div>
-                  <span className="font-bold text-sm">🇸🇴 Magacaaga oo dhameestiran, meesha aad joogtaa, maxaad qabataa?</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowGroupMembers(true)}
-                  className="p-1.5 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition-colors"
-                  title="Group members"
-                >
-                  <FaUsers size={14} />
-                </button>
-                <button
-                  onClick={handleChangeNickname}
-                  className="p-1.5 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition-colors"
-                  title="User profile"
-                >
-                  <FaUser size={14} />
-                </button>
-                <button
-                  onClick={toggleDarkMode}
-                  className="p-1.5 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition-colors"
-                  title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-                >
-                  {isDarkMode ? <FaSun size={14} /> : <FaMoon size={14} />}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* App Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 px-4 py-3">
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 px-4 py-3 sticky top-0 z-50">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="relative">
@@ -149,10 +110,33 @@ function App() {
 
           <div className="flex items-center gap-2">
             {user && (
-                <span className="text-sm text-gray-600 dark:text-gray-400">
+              <>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden sm:inline">
                   {formatNickname(user.nickname)}
                 </span>
+                <button
+                  onClick={() => setShowGroupMembers(true)}
+                  className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                  title="Group members"
+                >
+                  <FaUsers size={18} />
+                </button>
+                <button
+                  onClick={handleChangeNickname}
+                  className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                  title="User profile"
+                >
+                  <FaUser size={18} />
+                </button>
+              </>
             )}
+            <button
+              onClick={toggleDarkMode}
+              className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+              title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {isDarkMode ? <FaSun size={18} /> : <FaMoon size={18} />}
+            </button>
           </div>
         </div>
       </header>
