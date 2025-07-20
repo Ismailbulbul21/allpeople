@@ -85,7 +85,7 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
       {/* Daily Question Header */}
-      {user && (
+      {/* {user && (
         <div className="bg-gradient-to-r from-green-500 to-blue-600 text-white sticky top-0 z-50 shadow-lg">
           <div className="px-4 py-3">
             <div className="flex items-center justify-between">
@@ -121,7 +121,7 @@ function App() {
             </div>
           </div>
         </div>
-      )}
+      )} */}
 
       {/* App Header */}
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 px-4 py-3">
