@@ -64,33 +64,8 @@ export const AuthPage = ({ onLogin }) => {
       return;
     }
 
-    // Insert user profile
-    const { error: profileError } = await supabase
-      .from('users')
-      .insert([
-        { id: data.user.id, full_name: fullName, phone_number: phoneNumber }
-      ]);
-
-    if (profileError) {
-      setError(profileError.message);
-      setLoading(false);
-      return;
-    }
-
-    // Fetch the newly created user profile
-    const { data: userProfile, error: fetchError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', data.user.id)
-      .single();
-
-    if (fetchError) {
-      setError(fetchError.message);
-      setLoading(false);
-      return;
-    }
-
-    onLogin(userProfile);
+    // The trigger will now handle profile creation. We just need to log the user in.
+    onLogin(data.user);
     setLoading(false);
   };
 
