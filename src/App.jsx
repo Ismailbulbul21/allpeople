@@ -9,19 +9,25 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const session = supabase.auth.session();
-    if (session) {
-      // If you were using Supabase Auth, you'd fetch the user profile here.
-      // Since we're doing our own auth, we'll handle it differently.
+    try {
+      const savedUser = localStorage.getItem('user');
+      if (savedUser) {
+        setUser(JSON.parse(savedUser));
+      }
+    } catch (error) {
+      console.error("Failed to parse user from localStorage", error);
+      localStorage.removeItem('user');
     }
     setLoading(false);
   }, []);
 
   const handleLogin = (userData) => {
+    localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
   };
 
   const handleLogout = () => {
+    localStorage.removeItem('user');
     setUser(null);
   };
 

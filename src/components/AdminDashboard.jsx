@@ -41,14 +41,13 @@ export const AdminDashboard = ({ onLogout }) => {
 
   const handleCreateChallenge = async (e) => {
     e.preventDefault();
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('challenges')
       .insert([{ description, prize_amount: prizeAmount }]);
     
     if (error) {
       setError(error.message);
     } else {
-      setChallenges([...challenges, data[0]]);
       setDescription('');
       setPrizeAmount('');
       fetchChallengesAndSubmissions();

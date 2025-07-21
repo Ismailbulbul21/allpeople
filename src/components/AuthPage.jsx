@@ -14,27 +14,31 @@ export const AuthPage = ({ onLogin }) => {
     setLoading(true);
     setError(null);
 
-    const { data: users, error: fetchError } = await supabase
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: `${phoneNumber}@allpeople.app`, // Using a custom domain
+      password: password,
+    });
+
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+      return;
+    }
+
+    // Fetch user profile
+    const { data: userProfile, error: profileError } = await supabase
       .from('users')
       .select('*')
-      .eq('phone_number', phoneNumber)
+      .eq('id', data.user.id)
       .single();
-
-    if (fetchError || !users) {
-      setError('Invalid phone number or password');
+    
+    if(profileError) {
+      setError(profileError.message);
       setLoading(false);
       return;
     }
 
-    // In a real app, you'd use a secure password hashing library like bcrypt.
-    // For this example, we'll do a plain text comparison.
-    if (users.password !== password) {
-      setError('Invalid phone number or password');
-      setLoading(false);
-      return;
-    }
-
-    onLogin(users);
+    onLogin(userProfile);
     setLoading(false);
   };
 
@@ -43,11 +47,16 @@ export const AuthPage = ({ onLogin }) => {
     setLoading(true);
     setError(null);
 
-    const { data, error } = await supabase
-      .from('users')
-      .insert([{ full_name: fullName, phone_number: phoneNumber, password: password }])
-      .select()
-      .single();
+    const { data, error } = await supabase.auth.signUp({
+      email: `${phoneNumber}@allpeople.app`, // Using a custom domain
+      password: password,
+      options: {
+        data: {
+          full_name: fullName,
+          phone_number: phoneNumber,
+        }
+      }
+    });
 
     if (error) {
       setError(error.message);
@@ -55,7 +64,33 @@ export const AuthPage = ({ onLogin }) => {
       return;
     }
 
-    onLogin(data);
+    // Insert user profile
+    const { error: profileError } = await supabase
+      .from('users')
+      .insert([
+        { id: data.user.id, full_name: fullName, phone_number: phoneNumber }
+      ]);
+
+    if (profileError) {
+      setError(profileError.message);
+      setLoading(false);
+      return;
+    }
+
+    // Fetch the newly created user profile
+    const { data: userProfile, error: fetchError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', data.user.id)
+      .single();
+
+    if (fetchError) {
+      setError(fetchError.message);
+      setLoading(false);
+      return;
+    }
+
+    onLogin(userProfile);
     setLoading(false);
   };
 
