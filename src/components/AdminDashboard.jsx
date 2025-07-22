@@ -145,8 +145,8 @@ export const AdminDashboard = ({ onLogout }) => {
         </div>
         
         {selectedSubmission && (
-          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => setSelectedSubmission(null)}>
-            <div className="bg-gray-800 rounded-xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={() => setSelectedSubmission(null)}>
+            <div className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl mx-auto" onClick={(e) => e.stopPropagation()}>
               <SubmissionCard submission={selectedSubmission} onUpdate={handleSubmissionUpdate} />
             </div>
           </div>
