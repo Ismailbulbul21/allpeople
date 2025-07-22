@@ -132,11 +132,22 @@ export const AdminDashboard = ({ onLogout }) => {
           {/* Right Column: Submissions */}
           <div className="lg:col-span-2">
             <h2 className="text-3xl font-bold mb-6">Review Submissions ({submissions.length})</h2>
-            {loading ? <p>Loading submissions...</p> : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {loading ? <p className="text-center">Loading submissions...</p> : (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
                 {submissions.map((submission) => (
-                  <div key={submission.id} className="cursor-pointer" onClick={() => setSelectedSubmission(submission)}>
-                    <img src={submission.signed_image_url} alt="Submission" className="w-full h-full object-cover rounded-lg shadow-md hover:shadow-xl transition-shadow" />
+                  <div key={submission.id} className="bg-white/10 p-2 rounded-xl shadow-lg space-y-3">
+                    <img 
+                      src={submission.signed_image_url} 
+                      alt="Submission" 
+                      className="w-full h-40 object-cover rounded-lg cursor-pointer"
+                      onClick={() => setSelectedSubmission(submission)}
+                    />
+                    <button 
+                      onClick={() => setSelectedSubmission(submission)}
+                      className="w-full bg-indigo-600 text-white text-sm font-bold py-2 rounded-md hover:bg-indigo-700 transition"
+                    >
+                      Review
+                    </button>
                   </div>
                 ))}
               </div>
