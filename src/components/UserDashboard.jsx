@@ -21,30 +21,12 @@ export const UserDashboard = ({ user, onLogout }) => {
   const fetchData = async () => {
     setLoading(true);
     setError(null);
-
     try {
-      const { data: challengesData, error: challengesError } = await supabase
-        .from('challenges')
-        .select('*')
-        .order('created_at', { ascending: true });
-      if (challengesError) throw challengesError;
-      setChallenges(challengesData);
-
-      const { data: submissionsData, error: submissionsError } = await supabase
-        .from('submissions')
-        .select('*, users(full_name)')
-        .order('created_at', { ascending: true });
-      if (submissionsError) throw submissionsError;
+      const { data, error } = await supabase.functions.invoke('get-dashboard-feed');
+      if (error) throw error;
       
-      const getPath = (url) => (url && url.startsWith('http') ? url.split('/').pop() : url);
-      const signedUrlPromises = submissionsData.map(async (submission) => {
-        const imagePath = getPath(submission.image_url);
-        if (!imagePath) return { ...submission, signed_image_url: null };
-        const { data, error } = await supabase.storage.from('submissions').createSignedUrl(imagePath, 3600);
-        return { ...submission, signed_image_url: data?.signedUrl || null };
-      });
-      const submissionsWithUrls = await Promise.all(signedUrlPromises);
-      setSubmissions(submissionsWithUrls);
+      setChallenges(data.challenges || []);
+      setSubmissions(data.submissions || []);
 
     } catch (err) {
       setError(err.message);
@@ -104,7 +86,8 @@ export const UserDashboard = ({ user, onLogout }) => {
 
       if (dbError) throw dbError;
       
-      // Real-time should update, but we can force a fetch
+      // Real-time might be slightly delayed, so we optimistically update UI 
+      // or just refetch everything for simplicity.
       fetchData();
 
     } catch (err) {
@@ -119,7 +102,13 @@ export const UserDashboard = ({ user, onLogout }) => {
     submissions.filter(s => s.user_id === user.id).map(s => s.challenge_id)
   );
 
-  const combinedMessages = [...challenges, ...submissions]
+  const winningChallengeIds = new Set(
+    submissions.filter(s => s.is_winner).map(s => s.challenge_id)
+  );
+
+  const activeChallenges = challenges.filter(c => !winningChallengeIds.has(c.id));
+
+  const combinedMessages = [...activeChallenges, ...submissions]
     .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
   return (
@@ -217,7 +206,26 @@ export const UserDashboard = ({ user, onLogout }) => {
                   </div>
                 );
               } else if (isMySubmission) { // My own, private (non-winning) submission
-                return (
+                if (message.status === 'rejected') {
+                  return (
+                    <div key={`submission-${message.id}`} className="flex justify-end">
+                      <div className="bg-red-100 p-3 rounded-xl rounded-br-none shadow-md max-w-sm">
+                        <p className="text-sm font-semibold text-red-800 mb-2">Waa La Diiday:</p>
+                        {message.signed_image_url ? (
+                          <div className="relative">
+                            <img src={message.signed_image_url} alt="Your submission" className="rounded-lg max-h-60 filter grayscale opacity-60" />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <p className="text-white bg-red-600/80 px-4 py-1 rounded-full font-bold text-lg transform -rotate-12">WAA QALAD</p>
+                            </div>
+                          </div>
+                        ) : <div className="w-full h-40 bg-gray-200 flex items-center justify-center rounded-lg"><p className="text-gray-500">Loading image...</p></div>}
+                        <p className="text-xs text-gray-500 mt-2 text-right">{formatTimestamp(message.created_at)}</p>
+                      </div>
+                    </div>
+                  );
+                }
+                
+                return ( // This is for 'pending' submissions
                   <div key={`submission-${message.id}`} className="flex justify-end">
                     <div className="bg-green-100 p-3 rounded-xl rounded-br-none shadow-md max-w-sm">
                       <p className="text-sm font-semibold text-gray-800 mb-2">Waxaad gudbisay:</p>
