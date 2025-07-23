@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { SubmissionModal } from './SubmissionModal';
 import { formatDistanceToNow } from 'date-fns';
 
 const formatTimestamp = (dateString) => {
@@ -14,7 +13,7 @@ export const UserDashboard = ({ user, onLogout }) => {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedChallenge, setSelectedChallenge] = useState(null);
+  const [uploadingChallengeId, setUploadingChallengeId] = useState(null);
   const chatEndRef = useRef(null);
 
   const fetchData = async () => {
@@ -65,9 +64,43 @@ export const UserDashboard = ({ user, onLogout }) => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [submissions]);
 
-  const handleOpenModal = (challenge) => setSelectedChallenge(challenge);
-  const handleCloseModal = () => setSelectedChallenge(null);
-  const handleSubmitted = () => fetchData();
+  const handleFileSelectAndUpload = async (event, challenge) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setUploadingChallengeId(challenge.id);
+    setError(null);
+
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from('submissions')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { error: dbError } = await supabase
+        .from('submissions')
+        .insert([{
+          user_id: user.id,
+          challenge_id: challenge.id,
+          image_url: filePath,
+        }]);
+
+      if (dbError) throw dbError;
+      
+      // Real-time should update, but we can force a fetch
+      fetchData();
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploadingChallengeId(null);
+    }
+  };
   
   const mySubmittedChallengeIds = new Set(
     submissions.filter(s => s.user_id === user.id).map(s => s.challenge_id)
@@ -129,7 +162,26 @@ export const UserDashboard = ({ user, onLogout }) => {
                     )}
                     <div className="flex justify-between items-center mt-4">
                       <span className="text-xs text-gray-400">{formatTimestamp(message.created_at)}</span>
-                      {hasSubmitted ? <span className="px-3 py-1 text-sm font-bold text-green-700 bg-green-100 rounded-full">✓ Waa La Gudbiyay</span> : <button onClick={() => handleOpenModal(message)} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition">Gudbi Sawir</button>}
+                      {hasSubmitted ? (
+                        <span className="px-3 py-1 text-sm font-bold text-green-700 bg-green-100 rounded-full">✓ Waa La Gudbiyay</span>
+                      ) : (
+                        <>
+                          <input
+                            type="file"
+                            id={`file-upload-${message.id}`}
+                            className="hidden"
+                            accept="image/*"
+                            onChange={(e) => handleFileSelectAndUpload(e, message)}
+                            disabled={uploadingChallengeId === message.id}
+                          />
+                          <label
+                            htmlFor={`file-upload-${message.id}`}
+                            className={`px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg transition ${uploadingChallengeId === message.id ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-700 cursor-pointer'}`}
+                          >
+                            {uploadingChallengeId === message.id ? 'Wuu Gudbinayaa...' : 'Gudbi Sawir'}
+                          </label>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -168,7 +220,7 @@ export const UserDashboard = ({ user, onLogout }) => {
           <div ref={chatEndRef} />
         </div>
       </main>
-      {selectedChallenge && <SubmissionModal challenge={selectedChallenge} user={user} onClose={handleCloseModal} onSubmitted={handleSubmitted} />}
+      
     </div>
   );
 }; 
