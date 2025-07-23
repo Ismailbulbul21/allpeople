@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { formatDistanceToNow } from 'date-fns';
+import imageCompression from 'browser-image-compression';
 
 const formatTimestamp = (dateString) => {
   if (!dateString) return '';
@@ -14,6 +15,7 @@ export const UserDashboard = ({ user, onLogout }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [uploadingChallengeId, setUploadingChallengeId] = useState(null);
+  const [uploadStatus, setUploadStatus] = useState('');
   const chatEndRef = useRef(null);
 
   const fetchData = async () => {
@@ -71,17 +73,27 @@ export const UserDashboard = ({ user, onLogout }) => {
     setUploadingChallengeId(challenge.id);
     setError(null);
 
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-    const filePath = `${fileName}`;
-
     try {
+      setUploadStatus('Compressing...');
+      const options = {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
+      };
+      const compressedFile = await imageCompression(file, options);
+      
+      const fileExt = compressedFile.name.split('.').pop();
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+      
+      setUploadStatus('Uploading...');
       const { error: uploadError } = await supabase.storage
         .from('submissions')
-        .upload(filePath, file);
+        .upload(filePath, compressedFile);
 
       if (uploadError) throw uploadError;
 
+      setUploadStatus('Finalizing...');
       const { error: dbError } = await supabase
         .from('submissions')
         .insert([{
@@ -99,6 +111,7 @@ export const UserDashboard = ({ user, onLogout }) => {
       setError(err.message);
     } finally {
       setUploadingChallengeId(null);
+      setUploadStatus('');
     }
   };
   
@@ -178,7 +191,7 @@ export const UserDashboard = ({ user, onLogout }) => {
                             htmlFor={`file-upload-${message.id}`}
                             className={`px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg transition ${uploadingChallengeId === message.id ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-700 cursor-pointer'}`}
                           >
-                            {uploadingChallengeId === message.id ? 'Wuu Gudbinayaa...' : 'Gudbi Sawir'}
+                            {uploadingChallengeId === message.id ? uploadStatus : 'Gudbi Sawir'}
                           </label>
                         </>
                       )}
@@ -196,7 +209,7 @@ export const UserDashboard = ({ user, onLogout }) => {
                       <div className="bg-white rounded-lg p-4">
                         <p className="font-bold text-lg text-yellow-800">🎉 Ku Dhawaaqida Guuleystaha! 🎉</p>
                         <p className="mt-2 text-gray-700">
-                          <span className="font-bold">{message.users.full_name}</span> ayaa ku guuleystay tartanka!
+                          <span className="font-bold">{message.users?.full_name || 'Qof aan la garanayn'}</span> ayaa ku guuleystay tartanka!
                         </p>
                         {message.signed_image_url && <img src={message.signed_image_url} alt="Winning submission" className="rounded-lg max-h-80 mt-4 mx-auto shadow-md" />}
                       </div>
