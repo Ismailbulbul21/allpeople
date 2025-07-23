@@ -7,7 +7,7 @@ export const AdminDashboard = ({ onLogout }) => {
   const [submissions, setSubmissions] = useState([]);
   const [description, setDescription] = useState('');
   const [prizeAmount, setPrizeAmount] = useState('');
-  const [expiresAt, setExpiresAt] = useState('');
+  const [duration, setDuration] = useState({ value: 24, unit: 'hours' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedSubmission, setSelectedSubmission] = useState(null);
@@ -50,15 +50,24 @@ export const AdminDashboard = ({ onLogout }) => {
 
   const handleCreateChallenge = async (e) => {
     e.preventDefault();
+
+    const now = new Date();
+    if (duration.unit === 'hours') {
+      now.setHours(now.getHours() + duration.value);
+    } else if (duration.unit === 'days') {
+      now.setDate(now.getDate() + duration.value);
+    }
+    const expires_at = now.toISOString();
+
     const { error } = await supabase
       .from('challenges')
-      .insert([{ description, prize_amount: prizeAmount, expires_at: expiresAt }]);
+      .insert([{ description, prize_amount: prizeAmount, expires_at }]);
     if (error) {
       setError(error.message);
     } else {
       setDescription('');
       setPrizeAmount('');
-      setExpiresAt('');
+      setDuration({ value: 24, unit: 'hours' });
       fetchData();
     }
   };
@@ -105,8 +114,45 @@ export const AdminDashboard = ({ onLogout }) => {
                   <input id="prizeAmount" type="number" step="0.01" value={prizeAmount} onChange={(e) => setPrizeAmount(e.target.value)} required className="w-full bg-gray-700 text-white px-3 py-2 mt-1 border border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition" />
                 </div>
                 <div>
-                  <label htmlFor="expiresAt" className="block text-sm font-medium text-gray-300">Expires At</label>
-                  <input id="expiresAt" type="datetime-local" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} required className="w-full bg-gray-700 text-white px-3 py-2 mt-1 border border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition" />
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Challenge Duration</label>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-3">
+                    {[
+                      { v: 4, u: 'hours', l: '4 Hours' },
+                      { v: 12, u: 'hours', l: '12 Hours' },
+                      { v: 1, u: 'days', l: '1 Day' },
+                      { v: 3, u: 'days', l: '3 Days' },
+                    ].map(p => (
+                      <button
+                        key={p.l}
+                        type="button"
+                        onClick={() => setDuration({ value: p.v, unit: p.u })}
+                        className={`w-full py-2 text-xs font-semibold rounded-md transition-colors ${
+                          duration.value === p.v && duration.unit === p.u
+                            ? 'bg-indigo-600 text-white ring-2 ring-offset-2 ring-offset-gray-800 ring-indigo-500'
+                            : 'bg-gray-700 hover:bg-gray-600'
+                        }`}
+                      >
+                        {p.l}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      type="number" 
+                      min="1"
+                      value={duration.value}
+                      onChange={(e) => setDuration({ ...duration, value: e.target.value ? parseInt(e.target.value, 10) : 1 })}
+                      className="w-full bg-gray-700 text-white px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                    <select 
+                      value={duration.unit}
+                      onChange={(e) => setDuration({ ...duration, unit: e.target.value })}
+                      className="bg-gray-700 text-white px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                    >
+                      <option value="hours">Hours</option>
+                      <option value="days">Days</option>
+                    </select>
+                  </div>
                 </div>
                 <button type="submit" className="w-full px-4 py-3 font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition transform hover:scale-105">
                   Create Challenge
