@@ -73,7 +73,7 @@ export const AuthPage = ({ onLogin }) => {
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
       <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
         <h2 className="text-2xl font-bold text-center text-gray-900">
-          {isLogin ? 'Welcome Back!' : 'Create Your Account'}
+          {isLogin ? 'Soo Dhawow!' : 'Sameyso Koonto Cusub'}
         </h2>
         {error && <p className="text-red-500 text-center">{error}</p>}
         <form onSubmit={isLogin ? handleLogin : handleRegister} className="space-y-6">
@@ -83,7 +83,7 @@ export const AuthPage = ({ onLogin }) => {
                 htmlFor="full-name"
                 className="text-sm font-medium text-gray-700"
               >
-                Full Name
+                Magaca Oo Dhan
               </label>
               <input
                 id="full-name"
@@ -101,7 +101,7 @@ export const AuthPage = ({ onLogin }) => {
               htmlFor="phone-number"
               className="text-sm font-medium text-gray-700"
             >
-              Phone Number
+              Lambarka Taleefanka
             </label>
             <input
               id="phone-number"
@@ -118,7 +118,7 @@ export const AuthPage = ({ onLogin }) => {
               htmlFor="password"
               className="text-sm font-medium text-gray-700"
             >
-              Password
+              Erayga Sirta Ah
             </label>
             <input
               id="password"
@@ -136,7 +136,7 @@ export const AuthPage = ({ onLogin }) => {
               disabled={loading}
               className="w-full px-4 py-2 font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
             >
-              {loading ? 'Loading...' : isLogin ? 'Login' : 'Register'}
+              {loading ? 'Wuu Soo shubmayaa...' : isLogin ? 'Gal' : 'Isdiiwaangeli'}
             </button>
           </div>
         </form>
@@ -145,7 +145,7 @@ export const AuthPage = ({ onLogin }) => {
             onClick={() => setIsLogin(!isLogin)}
             className="text-sm text-indigo-600 hover:underline"
           >
-            {isLogin ? 'Need an account? Register' : 'Already have an account? Login'}
+            {isLogin ? 'Koonto ma u baahan tahay? Isdiiwaangeli' : 'Koonto ma leedahay? Gal'}
           </button>
         </div>
       </div>

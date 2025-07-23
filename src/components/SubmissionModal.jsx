@@ -60,12 +60,12 @@ export const SubmissionModal = ({ challenge, user, onClose, onSubmitted }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-lg">
-        <h2 className="text-2xl font-bold mb-4 text-gray-800">Submit to Challenge</h2>
+        <h2 className="text-2xl font-bold mb-4 text-gray-800">U Gudbi Tartanka</h2>
         <p className="mb-6 text-gray-600">{challenge.description}</p>
         <form onSubmit={handleSubmit}>
           <div className="mb-6">
             <label htmlFor="file-upload" className="block text-sm font-medium text-gray-700 mb-2">
-              Upload your photo
+              Soo Geli Sawirkaaga
             </label>
             <input
               id="file-upload"
@@ -82,14 +82,14 @@ export const SubmissionModal = ({ challenge, user, onClose, onSubmitted }) => {
               onClick={onClose}
               className="px-6 py-2 text-sm font-semibold text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300"
             >
-              Cancel
+              Ka Noqo
             </button>
             <button
               type="submit"
               disabled={loading}
               className="px-6 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
             >
-              {loading ? 'Submitting...' : 'Submit Photo'}
+              {loading ? 'Wuu Gudbinayaa...' : 'Gudbi Sawir'}
             </button>
           </div>
         </form>
