@@ -205,7 +205,10 @@ export const UserDashboard = ({ user, onLogout }) => {
                     </div>
                   </div>
                 );
-              } else if (isMySubmission) { // My own, private (non-winning) submission
+              }
+              
+              // Priority 2: Show the current user their own submissions in detail.
+              if (isMySubmission) { 
                 if (message.status === 'rejected') {
                   return (
                     <div key={`submission-${message.id}`} className="flex justify-end">
@@ -225,7 +228,8 @@ export const UserDashboard = ({ user, onLogout }) => {
                   );
                 }
                 
-                return ( // This is for 'pending' submissions
+                // This covers my 'pending' submissions
+                return (
                   <div key={`submission-${message.id}`} className="flex justify-end">
                     <div className="bg-green-100 p-3 rounded-xl rounded-br-none shadow-md max-w-sm">
                       <p className="text-sm font-semibold text-gray-800 mb-2">Waxaad gudbisay:</p>
@@ -235,7 +239,21 @@ export const UserDashboard = ({ user, onLogout }) => {
                   </div>
                 );
               }
-              return null; // Don't render other people's non-winning submissions
+
+              // Priority 3: Show a public notification for other users' pending submissions.
+              if (message.status === 'pending') {
+                const submitterName = message.users?.full_name || 'Qof';
+                return (
+                  <div key={`public-submission-${message.id}`} className="py-2 text-center">
+                    <p className="text-sm text-gray-600 bg-white/60 px-3 py-1 rounded-full inline-block shadow-sm">
+                      <span className="font-semibold">{submitterName}</span> ayaa sawir soo gudbiyay.
+                    </p>
+                  </div>
+                );
+              }
+
+              // Fallback: Don't render anything else (e.g., other people's rejected submissions)
+              return null;
             }
           })}
           <div ref={chatEndRef} />
