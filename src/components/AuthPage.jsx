@@ -145,7 +145,7 @@ export const AuthPage = ({ onLogin }) => {
             onClick={() => setIsLogin(!isLogin)}
             className="text-sm text-indigo-600 hover:underline"
           >
-            {isLogin ? 'Koonto ma u baahan tahay? Isdiiwaangeli' : 'Koonto ma leedahay? Gal'}
+            {isLogin ? 'Haddii aadan account lahayn, is diiwaangeli' : 'Horey account ma u leedahay? Gal'}
           </button>
         </div>
       </div>
